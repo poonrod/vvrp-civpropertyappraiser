@@ -1,0 +1,17 @@
+body { margin:0; font-family: Arial, sans-serif; background:#f5f7fb; color:#1b2430; }
+.topbar { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#102a43; color:#fff; }
+.topbar a, .topbar button { color:#fff; margin-left:8px; }
+.toolbar { padding:10px; background:#d9e2ec; display:flex; gap:10px; }
+#map { height: calc(100vh - 108px); }
+.legend { position:absolute; top:120px; left:10px; z-index:999; background:#fff; padding:10px; border:1px solid #bcccdc; }
+.hidden { display:none; }
+.panel { position:absolute; right:0; top:60px; width:350px; height:calc(100vh - 60px); overflow:auto; z-index:999; background:#fff; border-left:1px solid #bcccdc; padding:12px; }
+.modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.4); z-index:1200; }
+.modal form { background:#fff; width:420px; max-width:95vw; padding:12px; display:grid; gap:8px; }
+.cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap:8px; }
+.cards div { background:#fff; border:1px solid #bcccdc; padding:12px; }
+.inline { display:inline; }
+.centered { display:grid; place-content:center; height:100vh; }
+.btn { background:#334e68; color:#fff; text-decoration:none; padding:8px 12px; }
+.sale-banner { background:#f0b429; padding:8px; font-weight:bold; }
+@media (max-width: 768px) { .panel { width:100vw; } }

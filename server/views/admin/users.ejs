@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><title>User Management</title><link rel="stylesheet" href="/public/css/styles.css"/></head>
+<body><h2>User Management</h2><a href="/admin">Back</a>
+<table><thead><tr><th>User</th><th>Role</th><th>Change</th></tr></thead><tbody>
+<% users.forEach((u)=>{ %>
+<tr>
+<td><%= u.username %> (<%= u.discord_id %>)</td>
+<td><%= u.role %></td>
+<td><form action="/admin/users/<%= u.id %>/role" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><select name="role"><option>admin</option><option>appraiser</option><option>clerk</option><option>user</option></select><button>Update</button></form></td>
+</tr>
+<% }) %>
+</tbody></table>
+<h3>Login Logs</h3><ul><% logs.forEach((l)=>{ %><li><%= l.created_at %> - <%= l.username %> - <%= l.ip_address %></li><% }) %></ul>
+</body></html>
