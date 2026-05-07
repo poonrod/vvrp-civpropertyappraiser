@@ -22,7 +22,7 @@ function sessionSecretOrExit() {
   const raw = process.env.SESSION_SECRET;
   const s = raw != null ? String(raw).trim() : '';
   if (s) return s;
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV === 'development') {
     return 'dev-only-session-secret-not-for-production';
   }
   console.error(
