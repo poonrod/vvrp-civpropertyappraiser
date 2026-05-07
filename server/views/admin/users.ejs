@@ -1,14 +1,56 @@
 <!doctype html>
-<html><head><title>User Management</title><link rel="stylesheet" href="/public/css/styles.css"/></head>
-<body><h2>User Management</h2><a href="/admin">Back</a>
-<table><thead><tr><th>User</th><th>Role</th><th>Change</th></tr></thead><tbody>
-<% users.forEach((u)=>{ %>
-<tr>
-<td><%= u.username %> (<%= u.discord_id %>)</td>
-<td><%= u.role %></td>
-<td><form action="/admin/users/<%= u.id %>/role" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><select name="role"><option>admin</option><option>appraiser</option><option>clerk</option><option>user</option></select><button>Update</button></form></td>
-</tr>
-<% }) %>
-</tbody></table>
-<h3>Login Logs</h3><ul><% logs.forEach((l)=>{ %><li><%= l.created_at %> - <%= l.username %> - <%= l.ip_address %></li><% }) %></ul>
-</body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Users — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <h1 class="site-title">User management</h1>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/">Map</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <section>
+      <h2>Roles</h2>
+      <table>
+        <thead>
+          <tr><th>User</th><th>Role</th><th></th></tr>
+        </thead>
+        <tbody>
+          <% users.forEach((u)=>{ %>
+          <tr>
+            <td><%= u.username %> <span style="color:var(--text-muted);font-size:13px"><%= u.discord_id %></span></td>
+            <td><%= u.role %></td>
+            <td>
+              <form action="/admin/users/<%= u.id %>/role" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <select name="role" aria-label="New role for <%= u.username %>">
+                  <option>admin</option><option>appraiser</option><option>clerk</option><option>user</option>
+                </select>
+                <button type="submit" class="btn btn-primary" style="padding:6px 12px;font-size:13px">Save</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Login history</h3>
+      <ul>
+        <% logs.forEach((l)=>{ %>
+          <li><%= l.created_at %> — <%= l.username || '—' %> — <%= l.ip_address %></li>
+        <% }) %>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,55 +7,68 @@
   <link rel="stylesheet" href="/public/css/styles.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
-  <title>SAPA</title>
+  <title>San Andreas Property Appraiser</title>
 </head>
-<body>
-  <header class="topbar">
-    <h1>San Andreas Property Appraiser</h1>
-    <div>
-      <% if (user) { %>
-        <a href="/admin">Admin Panel</a>
-        <form class="inline" action="/auth/logout" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><button>Logout</button></form>
-      <% } else { %>
-        <a href="/auth/login">Staff Login</a>
-      <% } %>
+<body class="layout-map">
+  <header class="site-header">
+    <div class="site-header__inner">
+      <h1 class="site-title">San Andreas Property Appraiser</h1>
+      <nav class="site-nav" aria-label="Account">
+        <% if (user) { %>
+          <a class="btn btn-ghost" href="/admin">Admin</a>
+          <form class="inline" action="/auth/logout" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <button type="submit">Sign out</button>
+          </form>
+        <% } else { %>
+          <a class="btn btn-primary" href="/auth/login">Staff login</a>
+        <% } %>
+      </nav>
     </div>
   </header>
 
-  <section class="toolbar">
-    <input id="searchInput" placeholder="Search owner, parcel, address, business..." />
-    <button id="legendToggle">Legend</button>
-  </section>
-
-  <aside id="legend" class="legend hidden">
-    <div>Residential - Blue</div><div>Commercial - Orange</div><div>Government - Green</div><div>Vacant - Gray</div>
-    <div>For Sale - Yellow border</div><div>Foreclosed - Red border</div>
-  </aside>
-
-  <div id="map"></div>
-  <aside id="propertyPanel" class="panel hidden"></aside>
-
-  <% if (user && (user.role === 'admin' || user.role === 'appraiser')) { %>
-  <div id="propertyModal" class="modal hidden">
-    <form id="propertyForm">
-      <input type="hidden" id="geojsonInput" />
-      <h3>Create Property</h3>
-      <input name="name" placeholder="Property Name" required />
-      <select name="type"><option>Residential</option><option>Commercial</option><option>Government</option><option>Vacant Land</option></select>
-      <input name="address" placeholder="RP Address" required />
-      <select name="owner_type"><option>Individual</option><option>Business</option></select>
-      <input name="owner_name" placeholder="Owner Name" required />
-      <input name="purchase_price" placeholder="Purchase Price" type="number" step="0.01" />
-      <input name="purchase_date" type="date" />
-      <input name="assessed_value" placeholder="Assessed Value" type="number" step="0.01" />
-      <input name="tax_rate" placeholder="Tax Rate %" type="number" step="0.01" />
-      <select name="status"><option>Owned</option><option>For Sale</option><option>Foreclosed</option><option>Government Seized</option></select>
-      <textarea name="notes" placeholder="Notes"></textarea>
-      <button type="submit">Save</button>
-      <button type="button" id="closeModal">Cancel</button>
-    </form>
+  <div class="map-toolbar">
+    <input class="input-search" id="searchInput" type="search" autocomplete="off" placeholder="Search owner, parcel, address, business…" aria-label="Search properties" />
+    <button type="button" class="btn" id="legendToggle">Legend</button>
   </div>
-  <% } %>
+
+  <main class="map-stage">
+    <aside id="legend" class="legend hidden" aria-live="polite">
+      <div><strong style="color:var(--text)">Land use</strong></div>
+      <div>Residential — blue fill</div>
+      <div>Commercial — orange</div>
+      <div>Government — green</div>
+      <div>Vacant land — gray</div>
+      <div style="margin-top:8px"><strong style="color:var(--text)">Status borders</strong></div>
+      <div>For sale — yellow</div>
+      <div>Foreclosed — red</div>
+    </aside>
+
+    <div id="map" role="application" aria-label="Property map"></div>
+    <aside id="propertyPanel" class="panel hidden" aria-label="Property details"></aside>
+
+    <% if (user && (user.role === 'admin' || user.role === 'appraiser')) { %>
+    <div id="propertyModal" class="modal hidden">
+      <form id="propertyForm">
+        <input type="hidden" id="geojsonInput" />
+        <h3>New property</h3>
+        <input name="name" placeholder="Property name" required />
+        <select name="type" aria-label="Property type"><option>Residential</option><option>Commercial</option><option>Government</option><option>Vacant Land</option></select>
+        <input name="address" placeholder="RP address" required />
+        <select name="owner_type" aria-label="Owner type"><option>Individual</option><option>Business</option></select>
+        <input name="owner_name" placeholder="Owner name" required />
+        <input name="purchase_price" placeholder="Purchase price" type="number" step="0.01" />
+        <input name="purchase_date" type="date" />
+        <input name="assessed_value" placeholder="Assessed value" type="number" step="0.01" />
+        <input name="tax_rate" placeholder="Tax rate %" type="number" step="0.01" />
+        <select name="status" aria-label="Status"><option>Owned</option><option>For Sale</option><option>Foreclosed</option><option>Government Seized</option></select>
+        <textarea name="notes" placeholder="Notes" rows="3"></textarea>
+        <button type="submit">Save property</button>
+        <button type="button" id="closeModal">Cancel</button>
+      </form>
+    </div>
+    <% } %>
+  </main>
 
   <script>window.SAPA_CONFIG = <%- JSON.stringify(config || {}) %>; window.SAPA_USER = <%- JSON.stringify(user || null) %>;</script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

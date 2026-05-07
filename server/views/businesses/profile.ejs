@@ -1,3 +1,27 @@
 <!doctype html>
-<html><head><title>Business Profile</title><link rel="stylesheet" href="/public/css/styles.css"/></head>
-<body><h2><%= business.name %></h2><p>License: <%= business.license_id %></p><p>Type: <%= business.type %></p><p>CEO: <%= business.ceo_name %></p><a href="/">Back to map</a></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= business.name %> — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <h1 class="site-title"><%= business.name %></h1>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/">Map</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <p class="lead">Business record</p>
+    <div class="cards" style="grid-template-columns: 1fr">
+      <div><strong>License</strong><br /><span style="color:var(--text-muted)"><%= business.license_id %></span></div>
+      <div><strong>Type</strong><br /><span style="color:var(--text-muted)"><%= business.type %></span></div>
+      <div><strong>CEO</strong><br /><span style="color:var(--text-muted)"><%= business.ceo_name %></span></div>
+    </div>
+  </div>
+</body>
+</html>

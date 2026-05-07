@@ -1,9 +1,14 @@
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-const mapEl = document.getElementById('map');
 const panel = document.getElementById('propertyPanel');
 const legend = document.getElementById('legend');
 const searchInput = document.getElementById('searchInput');
 const user = window.SAPA_USER;
+
+function escapeHtml(s) {
+  const el = document.createElement('div');
+  el.textContent = s == null ? '' : String(s);
+  return el.innerHTML;
+}
 
 const bounds = window.SAPA_CONFIG.bounds || [[0, 0], [1080, 1920]];
 const mapBounds = L.latLngBounds(bounds);
@@ -45,24 +50,37 @@ function styleForProperty(p) {
 function renderPanel(p) {
   panel.classList.remove('hidden');
   panel.innerHTML = `
-    ${p.status === 'For Sale' ? `<div class="sale-banner">For Sale - Asking: $${Number(p.purchase_price || 0).toLocaleString()}</div>` : ''}
-    <h3>${p.name}</h3>
-    <p><b>Parcel:</b> ${p.parcel_id}</p>
-    <p><b>Address:</b> ${p.address}</p>
-    <p><b>Owner:</b> ${p.owner_name} (${p.owner_type})</p>
-    <p><b>Purchase Date:</b> ${p.purchase_date || 'N/A'}</p>
-    <p><b>Purchase Price:</b> $${Number(p.purchase_price || 0).toLocaleString()}</p>
-    <p><b>Assessed Value:</b> $${Number(p.assessed_value || 0).toLocaleString()}</p>
-    <p><b>Annual Tax:</b> $${Number(p.annual_tax || 0).toLocaleString()}</p>
-    <p><b>Status:</b> ${p.status}</p>
-    <p><b>Last Updated:</b> ${p.updated_at}</p>
-    <button id="txBtn">View Transaction History</button>
+    <div class="panel__inner">
+    ${p.status === 'For Sale' ? `<div class="sale-banner">For sale — asking $${Number(p.purchase_price || 0).toLocaleString()}</div>` : ''}
+    <h3>${escapeHtml(p.name)}</h3>
+    <p class="detail"><strong>Parcel</strong> ${escapeHtml(String(p.parcel_id))}</p>
+    <p class="detail"><strong>Address</strong> ${escapeHtml(String(p.address))}</p>
+    <p class="detail"><strong>Owner</strong> ${escapeHtml(String(p.owner_name))} (${escapeHtml(String(p.owner_type))})</p>
+    <p class="detail"><strong>Purchase date</strong> ${p.purchase_date ? escapeHtml(String(p.purchase_date)) : '—'}</p>
+    <p class="detail"><strong>Purchase price</strong> $${Number(p.purchase_price || 0).toLocaleString()}</p>
+    <p class="detail"><strong>Assessed value</strong> $${Number(p.assessed_value || 0).toLocaleString()}</p>
+    <p class="detail"><strong>Annual tax</strong> $${Number(p.annual_tax || 0).toLocaleString()}</p>
+    <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
+    <p class="detail"><strong>Updated</strong> ${escapeHtml(String(p.updated_at || ''))}</p>
+    <button type="button" class="btn btn-primary btn-panel" id="txBtn">Transaction history</button>
+    </div>
   `;
   panel.querySelector('#txBtn').addEventListener('click', async () => {
+    panel.querySelector('.panel-timeline')?.remove();
     const r = await fetch(`/api/properties/${p.id}/transactions`);
     const tx = await r.json();
-    const timeline = tx.map((t) => `<li>${t.transfer_date}: ${t.from_owner} -> ${t.to_owner} ($${Number(t.sale_price).toLocaleString()})</li>`).join('');
-    panel.innerHTML += `<h4>Timeline</h4><ul>${timeline || '<li>No records</li>'}</ul>`;
+    const timeline = tx
+      .map(
+        (t) =>
+          `<li><time>${escapeHtml(String(t.transfer_date))}</time> · ${escapeHtml(String(t.from_owner))} → ${escapeHtml(String(t.to_owner))} · $${Number(t.sale_price).toLocaleString()}</li>`
+      )
+      .join('');
+    panel
+      .querySelector('.panel__inner')
+      ?.insertAdjacentHTML(
+        'beforeend',
+        `<div class="panel-timeline"><h4 style="margin:20px 0 10px;font-size:15px">Transactions</h4><ul>${timeline || '<li>No records</li>'}</ul></div>`
+      );
   });
 }
 

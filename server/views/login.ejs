@@ -1,3 +1,19 @@
 <!doctype html>
-<html><head><title>SAPA Login</title><link rel="stylesheet" href="/public/css/styles.css"/></head>
-<body><main class="centered"><h2>Staff Authentication</h2><a class="btn" href="<%= authUrl %>">Login with Discord</a></main></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Staff login — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+</head>
+<body>
+  <main class="login-card-wrap">
+    <div class="login-card">
+      <p class="login-card__eyebrow">San Andreas Property Appraiser</p>
+      <h1 class="login-card__title">Staff access</h1>
+      <p class="login-card__hint">Sign in with Discord to open the admin tools.</p>
+      <a class="btn btn-primary login-card__cta" href="<%= authUrl %>">Continue with Discord</a>
+    </div>
+  </main>
+</body>
+</html>

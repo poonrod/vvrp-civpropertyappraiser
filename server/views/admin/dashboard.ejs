@@ -1,20 +1,57 @@
 <!doctype html>
-<html><head><title>Admin Dashboard</title><link rel="stylesheet" href="/public/css/styles.css"/></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+</head>
 <body>
-<header class="topbar"><h2>Admin Dashboard</h2><a href="/">Public Map</a> <a href="/admin/users">Users</a></header>
-<section class="cards">
-  <div>Total Properties: <%= stats.totalProperties %></div>
-  <div>Total Value: $<%= Number(stats.totalValue).toLocaleString() %></div>
-  <div>Residential: <%= stats.residentialCount %></div>
-  <div>Commercial: <%= stats.commercialCount %></div>
-  <div>Businesses: <%= stats.totalBusinesses %></div>
-</section>
-<section>
-  <h3>Data</h3>
-  <p>The map image is fixed (bundled with the app).</p>
-  <form action="/admin/maps/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><button type="submit">Reset all polygons</button></form>
-  <p><a href="/admin/export/json">Download JSON export</a></p>
-</section>
-<section><h3>Recent Properties</h3><ul><% recentProperties.forEach((p)=>{ %><li><%= p.parcel_id %> - <%= p.name %> (<%= p.status %>)</li><% }) %></ul></section>
-<section><h3>Audit Logs</h3><ul><% audit.forEach((a)=>{ %><li><%= a.created_at %> | <%= a.action %> | <%= a.table_name %>#<%= a.record_id %></li><% }) %></ul></section>
-</body></html>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <h1 class="site-title">Admin dashboard</h1>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/">Map</a>
+        <a class="btn btn-ghost" href="/admin/users">Users</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <section class="cards">
+      <div><strong><%= stats.totalProperties %></strong><br /><span class="stat-label">Properties</span></div>
+      <div><strong>$<%= Number(stats.totalValue).toLocaleString() %></strong><br /><span class="stat-label">Total assessed</span></div>
+      <div><strong><%= stats.residentialCount %></strong><br /><span class="stat-label">Residential</span></div>
+      <div><strong><%= stats.commercialCount %></strong><br /><span class="stat-label">Commercial</span></div>
+      <div><strong><%= stats.totalBusinesses %></strong><br /><span class="stat-label">Businesses</span></div>
+    </section>
+
+    <section>
+      <h3>Data tools</h3>
+      <p class="lead">The map image is bundled with the app. Export property records as JSON or reset all polygons (destructive).</p>
+      <form action="/admin/maps/reset" method="post" style="margin-bottom:12px" onsubmit="return confirm('Delete ALL properties and transactions?');">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button type="submit" class="btn" style="border-color:rgba(248,113,113,0.4);color:#fecaca">Reset all polygons</button>
+      </form>
+      <p><a class="btn btn-ghost" href="/admin/export/json" download style="display:inline-flex">Download JSON export</a></p>
+    </section>
+
+    <section>
+      <h3>Recent properties</h3>
+      <ul>
+        <% recentProperties.forEach((p)=>{ %>
+          <li><%= p.parcel_id %> — <%= p.name %> <span style="color:var(--text-muted)">(<%= p.status %>)</span></li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <section>
+      <h3>Audit log</h3>
+      <ul class="audit-list">
+        <% audit.forEach((a)=>{ %>
+          <li><time><%= a.created_at %></time> · <%= a.action %> · <%= a.table_name %> #<%= a.record_id %></li>
+        <% }) %>
+      </ul>
+    </section>
+  </div>
+</body>
+</html>
