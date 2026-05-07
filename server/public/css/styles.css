@@ -3,6 +3,11 @@ body { margin:0; font-family: Arial, sans-serif; background:#f5f7fb; color:#1b24
 .topbar a, .topbar button { color:#fff; margin-left:8px; }
 .toolbar { padding:10px; background:#d9e2ec; display:flex; gap:10px; }
 #map { height: calc(100vh - 108px); }
+
+/* Match minimap tone when the viewport aspect ratio leaves gutter around the image */
+.leaflet-container {
+  background: #1a2224;
+}
 .legend { position:absolute; top:120px; left:10px; z-index:999; background:#fff; padding:10px; border:1px solid #bcccdc; }
 .hidden { display:none; }
 .panel { position:absolute; right:0; top:60px; width:350px; height:calc(100vh - 60px); overflow:auto; z-index:999; background:#fff; border-left:1px solid #bcccdc; padding:12px; }

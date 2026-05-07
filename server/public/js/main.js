@@ -5,8 +5,17 @@ const legend = document.getElementById('legend');
 const searchInput = document.getElementById('searchInput');
 const user = window.SAPA_USER;
 
-const map = L.map('map', { crs: L.CRS.Simple, minZoom: window.SAPA_CONFIG.min_zoom || -3, maxZoom: window.SAPA_CONFIG.max_zoom || 3 });
 const bounds = window.SAPA_CONFIG.bounds || [[0, 0], [1080, 1920]];
+const mapBounds = L.latLngBounds(bounds);
+
+const map = L.map('map', {
+  crs: L.CRS.Simple,
+  minZoom: window.SAPA_CONFIG.min_zoom || -3,
+  maxZoom: window.SAPA_CONFIG.max_zoom || 3,
+  maxBounds: mapBounds,
+  maxBoundsViscosity: 1
+});
+
 if (window.SAPA_CONFIG.map_image_path) {
   L.imageOverlay(window.SAPA_CONFIG.map_image_path, bounds).addTo(map);
 }
