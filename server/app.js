@@ -19,11 +19,12 @@ const { getMongoClientOptions } = require('./config/db');
 
 const app = express();
 
-// Evennode / reverse proxies send X-Forwarded-For; required for express-rate-limit + accurate req.ip
+// Reverse proxies (Evennode, etc.) send X-Forwarded-For — required for express-rate-limit + req.ip.
+// Default: trust first hop. Set TRUST_PROXY=false only when nothing proxies (no XFF header).
 if (process.env.TRUST_PROXY === 'false' || process.env.TRUST_PROXY === '0') {
   app.set('trust proxy', false);
-} else if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
+} else {
+  app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
 }
 
 function sessionSecretOrExit() {
