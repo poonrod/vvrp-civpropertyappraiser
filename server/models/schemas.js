@@ -89,17 +89,6 @@ const loginLogSchema = new Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: false } }
 );
 
-const mapConfigSchema = new Schema(
-  {
-    map_image_path: { type: String, required: true },
-    bounds: { type: Schema.Types.Mixed, required: true },
-    min_zoom: { type: Number, required: true },
-    max_zoom: { type: Number, required: true },
-    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: false } }
-);
-
 module.exports = {
   User: mongoose.models.User || mongoose.model('User', userSchema),
   Business: mongoose.models.Business || mongoose.model('Business', businessSchema),
@@ -107,6 +96,5 @@ module.exports = {
   PropertyTransaction:
     mongoose.models.PropertyTransaction || mongoose.model('PropertyTransaction', propertyTransactionSchema),
   AuditLog: mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema),
-  LoginLog: mongoose.models.LoginLog || mongoose.model('LoginLog', loginLogSchema),
-  MapConfig: mongoose.models.MapConfig || mongoose.model('MapConfig', mapConfigSchema)
+  LoginLog: mongoose.models.LoginLog || mongoose.model('LoginLog', loginLogSchema)
 };

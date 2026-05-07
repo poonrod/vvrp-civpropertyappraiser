@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
-    "deploy:evennode": "git push evennode main"
+    "deploy:evennode": "git push evennode main",
+    "stitch-map": "node tools/run-stitch-map.js"
   },
   "dependencies": {
     "connect-flash": "^0.1.1",
@@ -23,10 +24,10 @@
     "helmet": "^8.1.0",
     "method-override": "^3.0.0",
     "mongoose": "^8.23.1",
-    "multer": "^1.4.5-lts.2",
     "pdfkit": "^0.16.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "sharp": "^0.34.5"
   }
 }

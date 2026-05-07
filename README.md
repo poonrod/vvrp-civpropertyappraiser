@@ -20,7 +20,7 @@ Production-ready FiveM RP property ownership tracker built with Express, MongoDB
 - Property polygon create/edit/delete API with GeoJSON validation.
 - Annual tax calculation (`assessed_value * tax_rate / 100`).
 - Business linking and business profile page.
-- Admin dashboard: stats, recent properties, audit logs, map upload/reset, JSON export, GeoJSON import.
+- Admin dashboard: stats, recent properties, audit logs, polygon reset, JSON export, GeoJSON import (map image is bundled).
 - User management with role changes and login logs.
 - CSV and PDF exports for properties.
 - Session auth, CSRF, rate limiting, and security headers.

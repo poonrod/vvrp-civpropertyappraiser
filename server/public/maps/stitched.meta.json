@@ -1,0 +1,81 @@
+{
+  "generated_at": "2026-05-07T20:59:36.610Z",
+  "source_directory": "C:\\Users\\PC\\Documents\\vicevalleyrp\\vicevalleyrp-propappraiser\\map\\exports",
+  "output_image": "C:\\Users\\PC\\Documents\\vicevalleyrp\\vicevalleyrp-propappraiser\\server\\public\\maps\\default-map.png",
+  "tile_naming": "minimap_ROW_COL — row increases downward, col increases rightward; top-left is 0_0",
+  "stitch_overrides_file": "C:\\Users\\PC\\Documents\\vicevalleyrp\\vicevalleyrp-propappraiser\\map\\exports\\stitch-overrides.json",
+  "tile_width": 4096,
+  "tile_height": 4096,
+  "mode": "partial",
+  "grid": {
+    "columns": 2,
+    "rows": 3,
+    "min_row": 0,
+    "max_row": 2,
+    "min_col": 0,
+    "max_col": 1
+  },
+  "source_tiles": [
+    {
+      "row": 0,
+      "col": 0,
+      "kind": "sea",
+      "file": "minimap_sea_0_0.png"
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "kind": "sea",
+      "file": "minimap_sea_0_1.png"
+    },
+    {
+      "row": 1,
+      "col": 0,
+      "kind": "sea",
+      "file": "minimap_sea_1_0.png"
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "kind": "sea",
+      "file": "minimap_sea_1_1.png"
+    },
+    {
+      "row": 2,
+      "col": 0,
+      "kind": "sea",
+      "file": "minimap_sea_2_0.png"
+    },
+    {
+      "row": 2,
+      "col": 1,
+      "kind": "sea",
+      "file": "minimap_sea_2_1.png"
+    }
+  ],
+  "leaflet_bounds": [
+    [
+      0,
+      0
+    ],
+    [
+      12288,
+      8192
+    ]
+  ],
+  "leaflet_suggestion": {
+    "map_image_path": "/uploads/maps/default-map.png",
+    "bounds": [
+      [
+        0,
+        0
+      ],
+      [
+        12288,
+        8192
+      ]
+    ],
+    "min_zoom": -1,
+    "max_zoom": 4
+  }
+}

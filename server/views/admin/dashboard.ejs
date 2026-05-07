@@ -10,17 +10,10 @@
   <div>Businesses: <%= stats.totalBusinesses %></div>
 </section>
 <section>
-  <h3>Map Management</h3>
-  <form action="/admin/maps/upload" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
-    <input type="file" name="map_image" required />
-    <input type="text" name="bounds" value="[[0,0],[1080,1920]]" />
-    <input type="number" name="min_zoom" value="-3" />
-    <input type="number" name="max_zoom" value="3" />
-    <button>Upload Map</button>
-  </form>
-  <form action="/admin/maps/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><button>Reset All Polygons</button></form>
-  <a href="/admin/export/json">Download JSON export</a>
+  <h3>Data</h3>
+  <p>The map image is fixed (bundled with the app).</p>
+  <form action="/admin/maps/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><button type="submit">Reset all polygons</button></form>
+  <p><a href="/admin/export/json">Download JSON export</a></p>
 </section>
 <section><h3>Recent Properties</h3><ul><% recentProperties.forEach((p)=>{ %><li><%= p.parcel_id %> - <%= p.name %> (<%= p.status %>)</li><% }) %></ul></section>
 <section><h3>Audit Logs</h3><ul><% audit.forEach((a)=>{ %><li><%= a.created_at %> | <%= a.action %> | <%= a.table_name %>#<%= a.record_id %></li><% }) %></ul></section>

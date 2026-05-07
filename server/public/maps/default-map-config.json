@@ -1,6 +1,15 @@
 {
   "map_image_path": "/public/maps/default-map.png",
-  "bounds": [[0, 0], [1080, 1920]],
-  "min_zoom": -3,
-  "max_zoom": 3
+  "bounds": [
+    [
+      0,
+      0
+    ],
+    [
+      12288,
+      8192
+    ]
+  ],
+  "min_zoom": -1,
+  "max_zoom": 4
 }

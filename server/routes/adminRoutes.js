@@ -1,15 +1,11 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const mongoose = require('mongoose');
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
-const { AuditLog, LoginLog, MapConfig, Property, PropertyTransaction } = require('../models/schemas');
+const { AuditLog, LoginLog, Property, PropertyTransaction } = require('../models/schemas');
 const { listUsers, updateUserRole } = require('../models/userModel');
 const { listPropertiesForMap, createProperty } = require('../models/propertyModel');
 const { listBusinesses } = require('../models/businessModel');
 
 const router = express.Router();
-const upload = multer({ dest: path.join(__dirname, '..', 'uploads', 'maps') });
 
 router.get('/', requireAuth, async (req, res) => {
   const props = await listPropertiesForMap('');
@@ -41,19 +37,6 @@ router.get('/users', requireAuth, requireRole('admin'), async (req, res) => {
 router.post('/users/:id/role', requireAuth, requireRole('admin'), async (req, res) => {
   await updateUserRole(req.params.id, req.body.role);
   res.redirect('/admin/users');
-});
-
-router.post('/maps/upload', requireAuth, requireRole('admin'), upload.single('map_image'), async (req, res) => {
-  if (!req.file) return res.redirect('/admin');
-  const bounds = req.body.bounds ? JSON.parse(req.body.bounds) : [[0, 0], [1080, 1920]];
-  await MapConfig.create({
-    map_image_path: `/uploads/maps/${path.basename(req.file.path)}`,
-    bounds,
-    min_zoom: Number(req.body.min_zoom ?? -3),
-    max_zoom: Number(req.body.max_zoom ?? 3),
-    created_by: new mongoose.Types.ObjectId(req.session.user.id)
-  });
-  res.redirect('/admin');
 });
 
 router.post('/maps/reset', requireAuth, requireRole('admin'), async (req, res) => {
