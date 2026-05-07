@@ -6,19 +6,35 @@ mongoose.set('strictQuery', false);
 
 let warnedTlsCaMissing = false;
 
+/** Evennode MongoDB CA — committed public cert at repo root (same cwd as package.json on deploy). */
+const BUNDLED_MONGO_CA = path.join(process.cwd(), 'evennode-mongodb-ca.pem');
+
 /**
  * Shared MongoDB driver options (TLS + CA) for Mongoose and connect-mongo.
- * Set MONGODB_TLS_CA_FILE to the path of Evennode's evennode.pem (app working directory or absolute).
+ * MONGODB_TLS_CA_FILE: path under cwd or absolute. If missing, falls back to evennode-mongodb-ca.pem when present.
  */
 function getMongoClientOptions() {
-  const caPath = process.env.MONGODB_TLS_CA_FILE;
-  if (!caPath) return {};
-  const resolved = path.isAbsolute(caPath) ? caPath : path.join(process.cwd(), caPath);
-  if (!fs.existsSync(resolved)) {
-    if (!warnedTlsCaMissing) {
+  const cwd = process.cwd();
+  const envPath = process.env.MONGODB_TLS_CA_FILE;
+  const tryPaths = [];
+  if (envPath) {
+    tryPaths.push(path.isAbsolute(envPath) ? envPath : path.join(cwd, envPath));
+  }
+  if (fs.existsSync(BUNDLED_MONGO_CA)) tryPaths.push(BUNDLED_MONGO_CA);
+
+  let resolved = null;
+  for (const p of tryPaths) {
+    if (fs.existsSync(p)) {
+      resolved = p;
+      break;
+    }
+  }
+
+  if (!resolved) {
+    if (envPath && !warnedTlsCaMissing) {
       warnedTlsCaMissing = true;
       console.warn(
-        `[SAPA] MONGODB_TLS_CA_FILE not found: ${resolved}. Remove MONGODB_TLS_CA_FILE from env to use default TLS trust, or add the PEM next to package.json before deploy.`
+        `[SAPA] MONGODB_TLS_CA_FILE not found (${envPath}). Remove it to use default TLS trust, or rely on bundled evennode-mongodb-ca.pem at repo root after deploy.`
       );
     }
     return {};

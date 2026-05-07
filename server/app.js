@@ -20,13 +20,25 @@ const { getMongoClientOptions } = require('./config/db');
 
 const app = express();
 
-// Reverse proxies (Evennode, etc.) send X-Forwarded-For — required for express-rate-limit + req.ip.
-// Default: trust first hop. Set TRUST_PROXY=false only when nothing proxies (no XFF header).
-if (process.env.TRUST_PROXY === 'false' || process.env.TRUST_PROXY === '0') {
-  app.set('trust proxy', false);
-} else {
-  app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1);
+/**
+ * Evennode and similar hosts send X-Forwarded-For. Trust must not be false there or
+ * express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+ * Case-insensitive false / 0 / off only when you truly run without a proxy (local dev).
+ */
+function parseTrustProxySetting() {
+  const raw = process.env.TRUST_PROXY;
+  if (raw == null || String(raw).trim() === '') return 1;
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'false' || s === '0' || s === 'no' || s === 'off') return false;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return 1;
 }
+
+const trustProxySetting = parseTrustProxySetting();
+
+// Reverse proxies (Evennode, etc.) send X-Forwarded-For — required for express-rate-limit + req.ip.
+app.set('trust proxy', trustProxySetting);
 
 function sessionSecretOrExit() {
   const raw = process.env.SESSION_SECRET;
@@ -82,7 +94,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
-    proxy: process.env.TRUST_PROXY !== 'false' && process.env.TRUST_PROXY !== '0',
+    proxy: trustProxySetting !== false,
     cookie: {
       httpOnly: true,
       secure: sessionCookieSecure(),
