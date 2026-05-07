@@ -75,6 +75,7 @@ After changing variables, redeploy or restart the app if Evennode does not auto-
 2. Add `evennode.pem` to your deployed app directory (same folder as `package.json`), **do not commit** it — keep it out of Git (see `.gitignore`).
 3. Build `MONGODB_URI` from the dashboard shell example: include **both hosts**, port **27032**, database name, **`replicaSet=us-18`** (or whatever your dashboard shows). Put **username** and **URL-encoded password** in the URI (`encodeURIComponent` in Node for the password if it contains `^`, `%`, `!`, `*`, etc.).
 4. Set **`MONGODB_TLS_CA_FILE=evennode.pem`** (or an absolute path).
+5. If you **cannot** place `evennode.pem` on the server, **delete `MONGODB_TLS_CA_FILE`** from Evennode env vars. The driver will use the default TLS trust store (same as when the PEM is missing); only set this variable when the file is actually deployed.
 
 Example shape (password and hosts are placeholders):
 

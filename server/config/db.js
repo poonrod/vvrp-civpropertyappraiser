@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 
 mongoose.set('strictQuery', false);
 
+let warnedTlsCaMissing = false;
+
 /**
  * Shared MongoDB driver options (TLS + CA) for Mongoose and connect-mongo.
  * Set MONGODB_TLS_CA_FILE to the path of Evennode's evennode.pem (app working directory or absolute).
@@ -13,7 +15,12 @@ function getMongoClientOptions() {
   if (!caPath) return {};
   const resolved = path.isAbsolute(caPath) ? caPath : path.join(process.cwd(), caPath);
   if (!fs.existsSync(resolved)) {
-    console.warn(`[SAPA] MONGODB_TLS_CA_FILE not found: ${resolved}`);
+    if (!warnedTlsCaMissing) {
+      warnedTlsCaMissing = true;
+      console.warn(
+        `[SAPA] MONGODB_TLS_CA_FILE not found: ${resolved}. Remove MONGODB_TLS_CA_FILE from env to use default TLS trust, or add the PEM next to package.json before deploy.`
+      );
+    }
     return {};
   }
   return {
