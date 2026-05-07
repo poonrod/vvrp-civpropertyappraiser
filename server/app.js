@@ -15,6 +15,7 @@ const publicRoutes = require('./routes/publicRoutes');
 const propertyRoutes = require('./routes/propertyRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const businessRoutes = require('./routes/businessRoutes');
+const postalRoutes = require('./routes/postalRoutes');
 const { getMongoClientOptions } = require('./config/db');
 
 const app = express();
@@ -72,9 +73,12 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(methodOverride('_method'));
+
+// Resolve once so express-session always receives an explicit string (avoids deprecated req.secret fallback).
+const sessionSecret = sessionSecretOrExit();
 app.use(
   session({
-    secret: sessionSecretOrExit(),
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
@@ -103,6 +107,7 @@ app.use((req, res, next) => {
 app.use('/auth', loginLimiter, authRoutes);
 app.use('/', publicRoutes);
 app.use('/api/properties', propertyRoutes);
+app.use('/api/postals', postalRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/admin', adminRoutes);
 

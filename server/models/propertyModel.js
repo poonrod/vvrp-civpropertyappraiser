@@ -55,9 +55,11 @@ async function listPropertiesForMap(search = '') {
     const businessIds = matchingBusinesses.map((b) => b._id);
     filter = {
       $or: [
+        { name: rx },
         { owner_name: rx },
         { parcel_id: rx },
         { address: rx },
+        { notes: rx },
         ...(businessIds.length ? [{ business_id: { $in: businessIds } }] : [])
       ]
     };

@@ -1,0 +1,20 @@
+{
+  "description": "Manual entries override new-postals.json. marker_nudge: fine-tune after fly-to. calibration.worldLabelNudgeLat/Lng: extra Leaflet units (≈ PNG px) for world→map only. calibration.affine: optional { px:[a,b,c], py:[d,e,f] } mapping world X,Y to PNG pixels (py down) — fit with OCR vs new-postals; omit to use axis bounds below.",
+  "marker_nudge": { "lat": 0, "lng": 0 },
+  "calibration": {
+    "worldMinX": -4000,
+    "worldMaxX": 4500,
+    "worldMinY": -4000,
+    "worldMaxY": 8000,
+    "worldLabelNudgeLat": 520,
+    "worldLabelNudgeLng": 0
+  },
+  "postals": [
+    {
+      "code": "5000",
+      "worldX": -432.455078125,
+      "worldY": 2847.0344238281,
+      "zoom": 2
+    }
+  ]
+}
