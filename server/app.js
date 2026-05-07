@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
@@ -15,6 +17,20 @@ const adminRoutes = require('./routes/adminRoutes');
 const businessRoutes = require('./routes/businessRoutes');
 
 const app = express();
+
+function sessionSecretOrExit() {
+  const raw = process.env.SESSION_SECRET;
+  const s = raw != null ? String(raw).trim() : '';
+  if (s) return s;
+  if (process.env.NODE_ENV !== 'production') {
+    return 'dev-only-session-secret-not-for-production';
+  }
+  console.error(
+    '[SAPA] SESSION_SECRET is missing. In Evennode: App → Environment variables → add SESSION_SECRET (e.g. output of: openssl rand -hex 32)'
+  );
+  process.exit(1);
+}
+
 const sessionStore = new MySQLStore({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 3306),
@@ -39,7 +55,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(methodOverride('_method'));
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: sessionSecretOrExit(),
   resave: false,
   saveUninitialized: false,
   store: sessionStore,
