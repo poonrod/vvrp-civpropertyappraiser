@@ -641,6 +641,17 @@ body.layout-map {
   color: var(--text);
 }
 
+.login-card__error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  text-align: left;
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius-sm);
+}
+
 .login-card__hint {
   margin: 0 0 24px;
   font-size: 14px;

@@ -43,6 +43,8 @@ function sessionSecretOrExit() {
 function sessionCookieSecure() {
   if (process.env.SESSION_COOKIE_SECURE === 'false') return false;
   if (process.env.SESSION_COOKIE_SECURE === 'true') return true;
+  const base = process.env.BASE_URL || '';
+  if (base.startsWith('http://')) return false;
   return process.env.NODE_ENV === 'production';
 }
 
@@ -76,6 +78,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
+    proxy: process.env.TRUST_PROXY !== 'false' && process.env.TRUST_PROXY !== '0',
     cookie: {
       httpOnly: true,
       secure: sessionCookieSecure(),

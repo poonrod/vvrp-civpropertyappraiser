@@ -11,45 +11,73 @@ async function discordCallback(req, res) {
   const { code } = req.query;
   if (!code) return res.redirect('/auth/login');
 
-  const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: process.env.DISCORD_CLIENT_ID,
-      client_secret: process.env.DISCORD_CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: process.env.DISCORD_REDIRECT_URI
-    })
-  });
+  try {
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.DISCORD_REDIRECT_URI
+      })
+    });
 
-  const tokenJson = await tokenRes.json();
-  const userRes = await fetch('https://discord.com/api/users/@me', {
-    headers: { Authorization: `Bearer ${tokenJson.access_token}` }
-  });
-  const discordUser = await userRes.json();
+    const tokenJson = await tokenRes.json();
+    if (!tokenRes.ok || !tokenJson.access_token) {
+      console.error('[auth] Discord token error:', tokenRes.status, tokenJson);
+      req.flash('error', tokenJson.error_description || tokenJson.message || 'Discord login failed');
+      return res.redirect('/auth/login');
+    }
 
-  const user = await createOrUpdateDiscordUser({
-    discordId: discordUser.id,
-    username: discordUser.username,
-    avatar: discordUser.avatar
-  });
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` }
+    });
+    const discordUser = await userRes.json();
+    if (!userRes.ok || !discordUser.id) {
+      console.error('[auth] Discord user error:', userRes.status, discordUser);
+      req.flash('error', 'Could not read Discord profile.');
+      return res.redirect('/auth/login');
+    }
 
-  req.session.user = {
-    id: user.id,
-    discordId: user.discord_id,
-    username: user.username,
-    avatar: user.avatar,
-    role: user.role
-  };
+    const user = await createOrUpdateDiscordUser({
+      discordId: discordUser.id,
+      username: discordUser.username,
+      avatar: discordUser.avatar
+    });
 
-  await LoginLog.create({
-    user_id: new mongoose.Types.ObjectId(user.id),
-    ip_address: req.ip || 'unknown',
-    user_agent: req.get('user-agent') || 'unknown'
-  });
+    req.session.user = {
+      id: user.id,
+      discordId: user.discord_id,
+      username: user.username,
+      avatar: user.avatar,
+      role: user.role
+    };
 
-  return res.redirect('/admin');
+    try {
+      await LoginLog.create({
+        user_id: new mongoose.Types.ObjectId(user.id),
+        ip_address: req.ip || 'unknown',
+        user_agent: req.get('user-agent') || 'unknown'
+      });
+    } catch (logErr) {
+      console.error('[auth] LoginLog:', logErr.message);
+    }
+
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error('[auth] session.save:', saveErr);
+        req.flash('error', 'Session could not be saved. If using http://, set SESSION_COOKIE_SECURE=false on the server.');
+        return res.redirect('/auth/login');
+      }
+      return res.redirect('/admin');
+    });
+  } catch (e) {
+    console.error('[auth] discordCallback:', e);
+    req.flash('error', 'Login failed. Try again.');
+    return res.redirect('/auth/login');
+  }
 }
 
 function logout(req, res) {
