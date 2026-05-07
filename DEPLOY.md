@@ -62,11 +62,26 @@ Set these under your app’s **Environment variables** (names match `.env.exampl
 |----------|----------|--------|
 | `SESSION_SECRET` | **Yes** | Long random string. Generate locally: `openssl rand -hex 32`. Missing → `secret option required for sessions`. |
 | `NODE_ENV` | Recommended | `production` |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | **Yes** for DB | Use the MySQL credentials Evennode provides for your app. |
+| `MONGODB_URI` | **Yes** | MongoDB connection string (Atlas, Evennode Mongo, or self-hosted). Sessions use the same URI unless `USE_MEMORY_SESSION=true`. |
+| `MONGODB_TLS_CA_FILE` | Often **Yes** for Evennode Mongo | Path to `evennode.pem` from the Mongo dashboard (e.g. `evennode.pem` in the app root). Enables TLS + CA verification for Mongoose and session store. |
 | `BASE_URL` | Recommended | Your public site URL, e.g. `https://propappraiser.us-3.evennode.com` |
 | `DISCORD_*` | For login | Set `DISCORD_REDIRECT_URI` to your live callback URL (Discord Developer Portal must match). |
 
 After changing variables, redeploy or restart the app if Evennode does not auto-restart.
+
+### Evennode MongoDB (TLS)
+
+1. Download **evennode.pem** from the Mongo section in the dashboard.
+2. Add `evennode.pem` to your deployed app directory (same folder as `package.json`), **do not commit** it — keep it out of Git (see `.gitignore`).
+3. Build `MONGODB_URI` from the dashboard shell example: include **both hosts**, port **27032**, database name, **`replicaSet=us-18`** (or whatever your dashboard shows). Put **username** and **URL-encoded password** in the URI (`encodeURIComponent` in Node for the password if it contains `^`, `%`, `!`, `*`, etc.).
+4. Set **`MONGODB_TLS_CA_FILE=evennode.pem`** (or an absolute path).
+
+Example shape (password and hosts are placeholders):
+
+```text
+MONGODB_URI=mongodb://USER:URL_ENCODED_PASSWORD@HOST_A:27032,HOST_B:27032/DATABASE_NAME?replicaSet=us-18
+MONGODB_TLS_CA_FILE=evennode.pem
+```
 
 ### HTTPS vs HTTP and cookies
 

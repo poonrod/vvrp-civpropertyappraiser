@@ -3,18 +3,19 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
 const csurf = require('csurf');
-const MySQLStore = require('express-mysql-session')(session);
 
 const authRoutes = require('./routes/authRoutes');
 const publicRoutes = require('./routes/publicRoutes');
 const propertyRoutes = require('./routes/propertyRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const businessRoutes = require('./routes/businessRoutes');
+const { getMongoClientOptions } = require('./config/db');
 
 const app = express();
 
@@ -31,14 +32,21 @@ function sessionSecretOrExit() {
   process.exit(1);
 }
 
-const sessionStore = new MySQLStore({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  createDatabaseTable: true
-});
+function sessionCookieSecure() {
+  if (process.env.SESSION_COOKIE_SECURE === 'false') return false;
+  if (process.env.SESSION_COOKIE_SECURE === 'true') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
+const mongoUrl = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/sapa';
+const sessionStore =
+  process.env.USE_MEMORY_SESSION === 'true'
+    ? undefined
+    : MongoStore.create({
+        mongoUrl,
+        mongoOptions: getMongoClientOptions(),
+        touchAfter: 24 * 3600
+      });
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -54,18 +62,20 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(methodOverride('_method'));
-app.use(session({
-  secret: sessionSecretOrExit(),
-  resave: false,
-  saveUninitialized: false,
-  store: sessionStore,
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24
-  }
-}));
+app.use(
+  session({
+    secret: sessionSecretOrExit(),
+    resave: false,
+    saveUninitialized: false,
+    store: sessionStore,
+    cookie: {
+      httpOnly: true,
+      secure: sessionCookieSecure(),
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 24
+    }
+  })
+);
 app.use(flash());
 app.use(csurf());
 
@@ -87,6 +97,9 @@ app.use('/admin', adminRoutes);
 
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
+    if (req.path && req.path.startsWith('/api')) {
+      return res.status(403).json({ error: 'Invalid CSRF token' });
+    }
     return res.status(403).send('Invalid CSRF token');
   }
   console.error(err);

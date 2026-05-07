@@ -1,11 +1,15 @@
-const pool = require('../config/db');
+const mongoose = require('mongoose');
+const { AuditLog } = require('./schemas');
 
 async function createAuditLog({ userId, action, tableName, recordId, oldData, newData }) {
-  await pool.execute(
-    `INSERT INTO audit_logs (user_id, action, table_name, record_id, old_data, new_data)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [userId, action, tableName, recordId, oldData ? JSON.stringify(oldData) : null, newData ? JSON.stringify(newData) : null]
-  );
+  await AuditLog.create({
+    user_id: new mongoose.Types.ObjectId(userId),
+    action,
+    table_name: tableName,
+    record_id: recordId,
+    old_data: oldData ?? null,
+    new_data: newData ?? null
+  });
 }
 
 module.exports = { createAuditLog };

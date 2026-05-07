@@ -20,7 +20,7 @@
     <button>Upload Map</button>
   </form>
   <form action="/admin/maps/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"/><button>Reset All Polygons</button></form>
-  <a href="/admin/export/sql">Download SQL Export</a>
+  <a href="/admin/export/json">Download JSON export</a>
 </section>
 <section><h3>Recent Properties</h3><ul><% recentProperties.forEach((p)=>{ %><li><%= p.parcel_id %> - <%= p.name %> (<%= p.status %>)</li><% }) %></ul></section>
 <section><h3>Audit Logs</h3><ul><% audit.forEach((a)=>{ %><li><%= a.created_at %> | <%= a.action %> | <%= a.table_name %>#<%= a.record_id %></li><% }) %></ul></section>

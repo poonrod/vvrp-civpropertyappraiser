@@ -1,5 +1,6 @@
+const mongoose = require('mongoose');
 const { createOrUpdateDiscordUser } = require('../models/userModel');
-const pool = require('../config/db');
+const { LoginLog } = require('../models/schemas');
 
 function loginPage(req, res) {
   const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.DISCORD_REDIRECT_URI)}&response_type=code&scope=identify`;
@@ -42,10 +43,11 @@ async function discordCallback(req, res) {
     role: user.role
   };
 
-  await pool.execute(
-    'INSERT INTO login_logs (user_id, ip_address, user_agent) VALUES (?, ?, ?)',
-    [user.id, req.ip || 'unknown', req.get('user-agent') || 'unknown']
-  );
+  await LoginLog.create({
+    user_id: new mongoose.Types.ObjectId(user.id),
+    ip_address: req.ip || 'unknown',
+    user_agent: req.get('user-agent') || 'unknown'
+  });
 
   return res.redirect('/admin');
 }

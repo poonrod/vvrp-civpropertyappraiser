@@ -1,20 +1,34 @@
-const pool = require('../config/db');
+const mongoose = require('mongoose');
+const { PropertyTransaction } = require('./schemas');
 
 async function createTransaction(data) {
-  const [result] = await pool.execute(
-    `INSERT INTO property_transactions (property_id, from_owner, to_owner, sale_price, transfer_date, notes, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [data.property_id, data.from_owner, data.to_owner, data.sale_price, data.transfer_date, data.notes || null, data.created_by]
-  );
-  return result.insertId;
+  const doc = await PropertyTransaction.create({
+    property_id: new mongoose.Types.ObjectId(data.property_id),
+    from_owner: data.from_owner,
+    to_owner: data.to_owner,
+    sale_price: Number(data.sale_price) || 0,
+    transfer_date: new Date(data.transfer_date),
+    notes: data.notes || null,
+    created_by: new mongoose.Types.ObjectId(data.created_by)
+  });
+  return doc._id.toString();
 }
 
 async function getTransactionsByProperty(propertyId) {
-  const [rows] = await pool.execute(
-    'SELECT pt.*, u.username AS created_by_name FROM property_transactions pt LEFT JOIN users u ON u.id = pt.created_by WHERE property_id = ? ORDER BY transfer_date DESC',
-    [propertyId]
-  );
-  return rows;
+  const rows = await PropertyTransaction.find({ property_id: propertyId })
+    .populate('created_by', 'username')
+    .sort({ transfer_date: -1 })
+    .lean();
+  return rows.map((r) => {
+    const created = r.created_by;
+    return {
+      ...r,
+      id: String(r._id),
+      property_id: String(r.property_id),
+      created_by: created && created._id ? String(created._id) : r.created_by,
+      created_by_name: created && created.username ? created.username : null
+    };
+  });
 }
 
 module.exports = { createTransaction, getTransactionsByProperty };

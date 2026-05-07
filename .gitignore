@@ -1,4 +1,7 @@
-node_modules/
+node_modules
+
+# Evennode Mongo TLS CA (download from dashboard; never commit)
+evennode.pem
 .env
 npm-debug.log*
 server/uploads/maps/*
