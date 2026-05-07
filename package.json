@@ -5,7 +5,8 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "nodemon server/server.js"
+    "dev": "nodemon server/server.js",
+    "deploy:evennode": "git push evennode main"
   },
   "dependencies": {
     "connect-flash": "^0.1.1",
