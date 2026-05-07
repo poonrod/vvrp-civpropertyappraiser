@@ -9,7 +9,10 @@
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <h1 class="site-title"><%= business.name %></h1>
+      <div class="site-header__lead">
+        <%- include('../partials/brand') %>
+        <p class="site-header__context"><%= business.name %></p>
+      </div>
       <nav class="site-nav">
         <a class="btn btn-ghost" href="/">Map</a>
       </nav>

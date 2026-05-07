@@ -9,7 +9,10 @@
 <body>
   <header class="site-header">
     <div class="site-header__inner">
-      <h1 class="site-title">Admin dashboard</h1>
+      <div class="site-header__lead">
+        <%- include('../partials/brand') %>
+        <p class="site-header__context">Admin dashboard</p>
+      </div>
       <nav class="site-nav">
         <a class="btn btn-ghost" href="/">Map</a>
         <a class="btn btn-ghost" href="/admin/users">Users</a>

@@ -12,7 +12,9 @@
 <body class="layout-map">
   <header class="site-header">
     <div class="site-header__inner">
-      <h1 class="site-title">San Andreas Property Appraiser</h1>
+      <div class="site-header__lead">
+        <%- include('partials/brand') %>
+      </div>
       <nav class="site-nav" aria-label="Account">
         <% if (user) { %>
           <a class="btn btn-ghost" href="/admin">Admin</a>
