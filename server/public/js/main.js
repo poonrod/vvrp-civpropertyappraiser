@@ -447,7 +447,45 @@ async function maybeFlyToPostal(searchRaw) {
   const gn = postalPayload.marker_nudge || { lat: 0, lng: 0 };
   const ll = postalEntryToLatLng(entry, cal, gn);
   if (!ll) return;
-  map.setView(ll, Number(entry.zoom) || 2);
+
+  // Neighborhood frame (~6.5% of map extent each side, minimum px-ish span) — stay zoomed out vs street-level.
+  const latSpan = mapExtents.latMax - mapExtents.latMin;
+  const lngSpan = mapExtents.lngMax - mapExtents.lngMin;
+  const frac = 0.065;
+  const padLat = Math.max(latSpan * frac, 420);
+  const padLng = Math.max(lngSpan * frac, 560);
+
+  const r0 = ll.lat - padLat;
+  const r1 = ll.lat + padLat;
+  const c0 = ll.lng - padLng;
+  const c1 = ll.lng + padLng;
+  const lowLat = Math.min(r0, r1);
+  const highLat = Math.max(r0, r1);
+  const lowLng = Math.min(c0, c1);
+  const highLng = Math.max(c0, c1);
+
+  const sw = L.latLng(
+    Math.max(mapExtents.latMin, lowLat),
+    Math.max(mapExtents.lngMin, lowLng)
+  );
+  const ne = L.latLng(
+    Math.min(mapExtents.latMax, highLat),
+    Math.min(mapExtents.lngMax, highLng)
+  );
+  const area = L.latLngBounds(sw, ne);
+
+  const cfgMin = Number(window.SAPA_CONFIG.min_zoom);
+  const cfgMax = Number(window.SAPA_CONFIG.max_zoom);
+  const minZ = Number.isFinite(cfgMin) ? cfgMin : -2;
+  const maxZ = Number.isFinite(cfgMax) ? cfgMax : 4;
+  /** Never zoom in past ~district level for postals; prefer -1 when map allows (wide neighborhood). */
+  const postalMaxZoom = Math.min(maxZ, Math.max(minZ, -1));
+
+  map.fitBounds(area, {
+    padding: [52, 52],
+    maxZoom: postalMaxZoom,
+    animate: true
+  });
 }
 
 searchInput?.addEventListener('input', (e) => {
