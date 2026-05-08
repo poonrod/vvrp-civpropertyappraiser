@@ -17,7 +17,7 @@ const { createWorker, PSM } = require('tesseract.js');
 
 const projectRoot = path.resolve(__dirname, '..');
 const inputImage =
-  process.env.OCR_INPUT || path.join(projectRoot, 'server', 'uploads', 'maps', 'san-andreas.png');
+  process.env.OCR_INPUT || path.join(projectRoot, 'server', 'public', 'maps', 'default-map.png');
 const outputJson =
   process.env.OCR_OUTPUT || path.join(projectRoot, 'server', 'data', 'postals-ocr.json');
 

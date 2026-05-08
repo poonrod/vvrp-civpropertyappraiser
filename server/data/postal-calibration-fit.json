@@ -1,0 +1,19 @@
+{
+  "description": "Least-squares affine from tools/fit-postal-affine.js — paste into postals.json calibration",
+  "pair_count": 7,
+  "affine": {
+    "px": [
+      0.920738056446873,
+      -0.025844308479082256,
+      3827.6594446094887
+    ],
+    "py": [
+      -0.005090953303779511,
+      -0.8965332187301366,
+      7613.068078533526
+    ]
+  },
+  "world_bounds_note": "When affine is set, worldMin/Max are ignored for projection; keep for documentation.",
+  "max_error_lng": 133.62777923911563,
+  "max_error_lat": 64.16708893219993
+}

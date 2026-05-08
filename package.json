@@ -7,7 +7,9 @@
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
     "deploy:evennode": "git push evennode main",
-    "stitch-map": "node tools/run-stitch-map.js"
+    "stitch-map": "node tools/run-stitch-map.js",
+    "map:ocr-postals": "node tools/ocr-postals.js",
+    "map:fit-postals": "node tools/fit-postal-affine.js"
   },
   "dependencies": {
     "connect-flash": "^0.1.1",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "tesseract.js": "^7.0.0"
   }
 }
