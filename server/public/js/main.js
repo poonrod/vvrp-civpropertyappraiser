@@ -4,6 +4,11 @@ const legend = document.getElementById('legend');
 const searchInput = document.getElementById('searchInput');
 const user = window.SAPA_USER;
 
+const STAFF_ROLES = ['admin', 'appraiser', 'clerk'];
+function isStaff() {
+  return !!(user && STAFF_ROLES.includes(user.role));
+}
+
 function escapeHtml(s) {
   const el = document.createElement('div');
   el.textContent = s == null ? '' : String(s);
@@ -27,9 +32,6 @@ function boundsExtents(bb) {
 
 const mapExtents = boundsExtents(bounds);
 
-/**
- * Map GTA-style world X/Y to Leaflet Simple lat/lng using bundled calibration (same idea as server/data/postals.json).
- */
 function worldToLatLng(wx, wy, calibration) {
   const cal = calibration || {};
   const wxMin = Number(cal.worldMinX ?? -4000);
@@ -85,7 +87,7 @@ let postalByCode = new Map();
 async function loadPostalIndex() {
   if (postalPayload) return postalPayload;
   try {
-    const r = await fetch('/api/postals');
+    const r = await fetch('/api/postals', { credentials: 'same-origin' });
     if (!r.ok) throw new Error(String(r.status));
     postalPayload = await r.json();
     if (!postalPayload || typeof postalPayload !== 'object') {
@@ -106,7 +108,6 @@ async function loadPostalIndex() {
   return postalPayload;
 }
 
-/** If the query is only digits/spaces (3–4 digit postal), return normalized lookup key */
 function postalKeyFromQuery(q) {
   const t = q.trim();
   if (!t) return null;
@@ -132,6 +133,146 @@ map.fitBounds(bounds);
 void loadPostalIndex();
 
 const featureGroup = new L.FeatureGroup().addTo(map);
+
+const propertyModal = document.getElementById('propertyModal');
+const propertyForm = document.getElementById('propertyForm');
+const propertyTypeSelect = document.getElementById('propertyTypeSelect');
+const residentialOwnersBlock = document.getElementById('residentialOwnersBlock');
+const singleOwnerFields = document.getElementById('singleOwnerFields');
+const coOwnersList = document.getElementById('coOwnersList');
+const editPropertyId = document.getElementById('editPropertyId');
+const propertyModalTitle = document.getElementById('propertyModalTitle');
+const parcelDisplayRow = document.getElementById('parcelDisplayRow');
+const parcelDisplay = document.getElementById('parcelDisplay');
+const hideDetailsPublic = document.getElementById('hideDetailsPublic');
+const propertyFormSubmit = document.getElementById('propertyFormSubmit');
+
+function syncOwnerFieldsVisibility() {
+  if (!propertyTypeSelect || !residentialOwnersBlock || !singleOwnerFields) return;
+  const res = propertyTypeSelect.value === 'Residential';
+  residentialOwnersBlock.classList.toggle('hidden', !res);
+  singleOwnerFields.classList.toggle('hidden', res);
+  if (res && coOwnersList && coOwnersList.children.length === 0) addCoOwnerRow();
+}
+
+function addCoOwnerRow(name = '', ownerType = 'Individual') {
+  if (!coOwnersList) return;
+  const row = document.createElement('div');
+  row.className = 'co-owner-row';
+  const nameIn = document.createElement('input');
+  nameIn.type = 'text';
+  nameIn.placeholder = 'Owner name';
+  nameIn.value = name;
+  nameIn.className = 'co-owner-name';
+  const sel = document.createElement('select');
+  sel.className = 'co-owner-type';
+  ['Individual', 'Business'].forEach((t) => {
+    const o = document.createElement('option');
+    o.value = t;
+    o.textContent = t;
+    if (t === ownerType) o.selected = true;
+    sel.appendChild(o);
+  });
+  const rm = document.createElement('button');
+  rm.type = 'button';
+  rm.className = 'btn-remove-co';
+  rm.setAttribute('aria-label', 'Remove owner');
+  rm.textContent = '×';
+  rm.addEventListener('click', () => {
+    if (coOwnersList.children.length > 1) row.remove();
+  });
+  row.append(nameIn, sel, rm);
+  coOwnersList.appendChild(row);
+}
+
+function collectCoOwners() {
+  if (!coOwnersList) return [];
+  const out = [];
+  coOwnersList.querySelectorAll('.co-owner-row').forEach((row) => {
+    const name = row.querySelector('.co-owner-name')?.value?.trim();
+    const owner_type = row.querySelector('.co-owner-type')?.value || 'Individual';
+    if (name) out.push({ name, owner_type });
+  });
+  return out;
+}
+
+function resetFormForNew() {
+  if (!propertyForm) return;
+  propertyForm.reset();
+  if (editPropertyId) editPropertyId.value = '';
+  if (propertyModalTitle) propertyModalTitle.textContent = 'New property';
+  if (parcelDisplayRow) parcelDisplayRow.classList.add('hidden');
+  if (propertyFormSubmit) propertyFormSubmit.textContent = 'Save property';
+  if (coOwnersList) coOwnersList.innerHTML = '';
+  if (propertyTypeSelect) propertyTypeSelect.value = 'Residential';
+  addCoOwnerRow();
+  syncOwnerFieldsVisibility();
+  if (hideDetailsPublic) hideDetailsPublic.checked = false;
+}
+
+function fillFormFromProperty(data) {
+  if (!propertyForm) return;
+  const setVal = (fieldName, val) => {
+    const el = propertyForm.querySelector(`[name="${fieldName}"]`);
+    if (el) el.value = val ?? '';
+  };
+  setVal('name', data.name || '');
+  setVal('address', data.address || '');
+  propertyTypeSelect.value = data.type || 'Residential';
+  setVal('purchase_price', data.purchase_price ?? '');
+  setVal('purchase_date', data.purchase_date ? String(data.purchase_date).slice(0, 10) : '');
+  setVal('assessed_value', data.assessed_value ?? '');
+  setVal('tax_rate', data.tax_rate ?? '');
+  setVal('status', data.status || 'Owned');
+  setVal('notes', data.notes ?? '');
+  if (hideDetailsPublic) hideDetailsPublic.checked = !!data.hide_details_public;
+
+  if (coOwnersList) coOwnersList.innerHTML = '';
+  if (data.type === 'Residential') {
+    const owners = Array.isArray(data.residential_owners) ? data.residential_owners : [];
+    if (owners.length) owners.forEach((o) => addCoOwnerRow(o.name || '', o.owner_type || 'Individual'));
+    else addCoOwnerRow(data.owner_name || '', data.owner_type || 'Individual');
+  } else {
+    setVal('owner_name', data.owner_name || '');
+    setVal('owner_type', data.owner_type || 'Individual');
+  }
+  syncOwnerFieldsVisibility();
+}
+
+function buildPayloadFromForm(geojson) {
+  const fd = new FormData(propertyForm);
+  const type = propertyTypeSelect.value;
+  const payload = {
+    name: fd.get('name'),
+    type,
+    address: fd.get('address'),
+    purchase_price: Number(fd.get('purchase_price') || 0),
+    purchase_date: fd.get('purchase_date') || null,
+    assessed_value: Number(fd.get('assessed_value') || 0),
+    tax_rate: Number(fd.get('tax_rate') || 0),
+    status: fd.get('status'),
+    notes: fd.get('notes') || null,
+    hide_details_public: !!(hideDetailsPublic && hideDetailsPublic.checked),
+    geojson
+  };
+  if (type === 'Residential') {
+    payload.residential_owners = collectCoOwners();
+    if (!payload.residential_owners.length) {
+      throw new Error('Add at least one owner');
+    }
+    payload.owner_name = payload.residential_owners[0].name;
+    payload.owner_type = payload.residential_owners[0].owner_type;
+  } else {
+    payload.residential_owners = [];
+    payload.owner_name = fd.get('owner_name');
+    payload.owner_type = fd.get('owner_type');
+    if (!String(payload.owner_name || '').trim()) {
+      throw new Error('Owner name required');
+    }
+  }
+  return payload;
+}
+
 if (user && (user.role === 'admin' || user.role === 'appraiser')) {
   const drawControl = new L.Control.Draw({
     edit: { featureGroup, remove: true },
@@ -141,45 +282,117 @@ if (user && (user.role === 'admin' || user.role === 'appraiser')) {
 
   map.on(L.Draw.Event.CREATED, (e) => {
     const geo = e.layer.toGeoJSON().geometry;
-    document.getElementById('geojsonInput').value = JSON.stringify(geo);
-    document.getElementById('propertyModal')?.classList.remove('hidden');
+    const gj = document.getElementById('geojsonInput');
+    if (gj) gj.value = JSON.stringify(geo);
+    resetFormForNew();
+    propertyModal?.classList.remove('hidden');
   });
 }
+
+propertyTypeSelect?.addEventListener('change', syncOwnerFieldsVisibility);
+document.getElementById('addCoOwner')?.addEventListener('click', () => addCoOwnerRow());
 
 function styleForProperty(p) {
   const fillMap = { Residential: '#2f80ed', Commercial: '#f2994a', Government: '#27ae60', 'Vacant Land': '#7b8794' };
   const color = p.status === 'Foreclosed' ? '#d64545' : p.status === 'For Sale' ? '#f0b429' : '#1f2933';
-  return { color, weight: 2, fillColor: fillMap[p.type] || '#7b8794', fillOpacity: 0.5 };
+  const hiddenPublic = p.details_public_hidden && !isStaff();
+  return {
+    color,
+    weight: 2,
+    fillColor: fillMap[p.type] || '#7b8794',
+    fillOpacity: hiddenPublic ? 0.28 : 0.5
+  };
+}
+
+function ownersDetailHtml(p) {
+  if (p.type === 'Residential' && Array.isArray(p.residential_owners) && p.residential_owners.length > 0) {
+    return `<ul class="owner-list">${p.residential_owners
+      .map(
+        (o) =>
+          `<li>${escapeHtml(o.name)} <span class="text-muted">(${escapeHtml(o.owner_type)})</span></li>`
+      )
+      .join('')}</ul>`;
+  }
+  return `<p class="detail"><strong>Owner</strong> ${escapeHtml(String(p.owner_name))} (${escapeHtml(String(p.owner_type))})</p>`;
+}
+
+async function openEditModal(propertyId) {
+  if (!isStaff() || !propertyModal || !propertyForm) return;
+  let res;
+  try {
+    res = await fetch(`/api/properties/${encodeURIComponent(propertyId)}`, { credentials: 'same-origin' });
+  } catch (e) {
+    console.error(e);
+    return;
+  }
+  const data = await res.json().catch(() => null);
+  if (!data || data.error || data.details_public_hidden) return;
+
+  editPropertyId.value = propertyId;
+  propertyModalTitle.textContent = 'Edit property';
+  parcelDisplayRow?.classList.remove('hidden');
+  if (parcelDisplay) parcelDisplay.textContent = data.parcel_id || '';
+  propertyFormSubmit.textContent = 'Save changes';
+  document.getElementById('geojsonInput').value = JSON.stringify(data.geojson);
+  fillFormFromProperty(data);
+  propertyModal.classList.remove('hidden');
 }
 
 function renderPanel(p) {
   panel.classList.remove('hidden');
-  panel.innerHTML = `
+  const hidden = !!p.details_public_hidden;
+
+  const editBtn =
+    isStaff() && !hidden
+      ? `<button type="button" class="btn btn-primary btn-panel" id="editPropertyBtn">Edit details</button>`
+      : '';
+
+  const txBtn = hidden
+    ? ''
+    : `<button type="button" class="btn btn-primary btn-panel" id="txBtn">Transaction history</button>`;
+
+  if (hidden) {
+    panel.innerHTML = `
+    <div class="panel__inner">
+    <div class="panel-notice">Registered parcel — details are not published.</div>
+    <h3>${escapeHtml(p.name)}</h3>
+    <p class="detail"><strong>Parcel</strong> ${escapeHtml(String(p.parcel_id))}</p>
+    <p class="detail"><strong>Address</strong> ${escapeHtml(String(p.address))}</p>
+    <p class="detail"><strong>Type</strong> ${escapeHtml(String(p.type))}</p>
+    <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
+    ${editBtn}
+    </div>`;
+  } else {
+    panel.innerHTML = `
     <div class="panel__inner">
     ${p.status === 'For Sale' ? `<div class="sale-banner">For sale — asking $${Number(p.purchase_price || 0).toLocaleString()}</div>` : ''}
     <h3>${escapeHtml(p.name)}</h3>
     <p class="detail"><strong>Parcel</strong> ${escapeHtml(String(p.parcel_id))}</p>
     <p class="detail"><strong>Address</strong> ${escapeHtml(String(p.address))}</p>
-    <p class="detail"><strong>Owner</strong> ${escapeHtml(String(p.owner_name))} (${escapeHtml(String(p.owner_type))})</p>
+    ${ownersDetailHtml(p)}
     <p class="detail"><strong>Purchase date</strong> ${p.purchase_date ? escapeHtml(String(p.purchase_date)) : '—'}</p>
     <p class="detail"><strong>Purchase price</strong> $${Number(p.purchase_price || 0).toLocaleString()}</p>
     <p class="detail"><strong>Assessed value</strong> $${Number(p.assessed_value || 0).toLocaleString()}</p>
     <p class="detail"><strong>Annual tax</strong> $${Number(p.annual_tax || 0).toLocaleString()}</p>
     <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
     <p class="detail"><strong>Updated</strong> ${escapeHtml(String(p.updated_at || ''))}</p>
-    <button type="button" class="btn btn-primary btn-panel" id="txBtn">Transaction history</button>
-    </div>
-  `;
-  panel.querySelector('#txBtn').addEventListener('click', async () => {
+    ${txBtn}
+    ${editBtn}
+    </div>`;
+  }
+
+  panel.querySelector('#txBtn')?.addEventListener('click', async () => {
     panel.querySelector('.panel-timeline')?.remove();
-    const r = await fetch(`/api/properties/${p.id}/transactions`);
+    const r = await fetch(`/api/properties/${p.id}/transactions`, { credentials: 'same-origin' });
     const tx = await r.json();
-    const timeline = tx
-      .map(
-        (t) =>
-          `<li><time>${escapeHtml(String(t.transfer_date))}</time> · ${escapeHtml(String(t.from_owner))} → ${escapeHtml(String(t.to_owner))} · $${Number(t.sale_price).toLocaleString()}</li>`
-      )
-      .join('');
+    const timeline = Array.isArray(tx)
+      ? tx
+          .map(
+            (t) =>
+              `<li><time>${escapeHtml(String(t.transfer_date))}</time> · ${escapeHtml(String(t.from_owner))} → ${escapeHtml(String(t.to_owner))} · $${Number(t.sale_price).toLocaleString()}</li>`
+          )
+          .join('')
+      : '';
     panel
       .querySelector('.panel__inner')
       ?.insertAdjacentHTML(
@@ -187,10 +400,12 @@ function renderPanel(p) {
         `<div class="panel-timeline"><h4 style="margin:20px 0 10px;font-size:15px">Transactions</h4><ul>${timeline || '<li>No records</li>'}</ul></div>`
       );
   });
+
+  panel.querySelector('#editPropertyBtn')?.addEventListener('click', () => openEditModal(p.id));
 }
 
 let loadSeq = 0;
-let searchDebounce;
+let postalDebounce;
 
 async function loadProperties(search = '') {
   const seq = ++loadSeq;
@@ -198,7 +413,7 @@ async function loadProperties(search = '') {
   const url = `/api/properties?search=${encodeURIComponent(q)}`;
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(url, { credentials: 'same-origin' });
   } catch (e) {
     console.error(e);
     return;
@@ -237,33 +452,62 @@ async function maybeFlyToPostal(searchRaw) {
 
 searchInput?.addEventListener('input', (e) => {
   const v = e.target.value;
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => {
-    void maybeFlyToPostal(v);
-    void loadProperties(v);
-  }, 200);
+  void loadProperties(v);
+  clearTimeout(postalDebounce);
+  postalDebounce = setTimeout(() => void maybeFlyToPostal(v), 320);
 });
+
 document.getElementById('legendToggle')?.addEventListener('click', () => legend.classList.toggle('hidden'));
 
-const form = document.getElementById('propertyForm');
-form?.addEventListener('submit', async (e) => {
+propertyForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const formData = new FormData(form);
-  const payload = Object.fromEntries(formData.entries());
-  payload.geojson = JSON.parse(document.getElementById('geojsonInput').value);
-  payload.tax_rate = Number(payload.tax_rate || 0);
-  payload.assessed_value = Number(payload.assessed_value || 0);
-  payload.purchase_price = Number(payload.purchase_price || 0);
+  const gjEl = document.getElementById('geojsonInput');
+  let geojson;
+  try {
+    geojson = JSON.parse(gjEl?.value || 'null');
+  } catch {
+    alert('Invalid GeoJSON');
+    return;
+  }
+  let payload;
+  try {
+    payload = buildPayloadFromForm(geojson);
+  } catch (err) {
+    alert(err.message || 'Check the form');
+    return;
+  }
 
-  await fetch('/api/properties', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+  const editingId = editPropertyId?.value?.trim();
+  const headers = { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken };
+  const url = editingId ? `/api/properties/${encodeURIComponent(editingId)}` : '/api/properties';
+  const method = editingId ? 'PUT' : 'POST';
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    credentials: 'same-origin',
     body: JSON.stringify(payload)
   });
-  form.closest('.modal').classList.add('hidden');
-  form.reset();
-  loadProperties();
+  if (!res.ok) {
+    let msg = 'Save failed';
+    try {
+      const j = await res.json();
+      if (j.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    alert(msg);
+    return;
+  }
+  propertyModal?.classList.add('hidden');
+  resetFormForNew();
+  loadProperties(searchInput?.value || '');
 });
 
-document.getElementById('closeModal')?.addEventListener('click', () => document.getElementById('propertyModal').classList.add('hidden'));
+document.getElementById('closeModal')?.addEventListener('click', () => {
+  propertyModal?.classList.add('hidden');
+  resetFormForNew();
+});
+
+syncOwnerFieldsVisibility();
 loadProperties();

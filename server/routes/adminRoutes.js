@@ -55,6 +55,8 @@ router.get('/export/json', requireAuth, requireRole('admin'), async (req, res) =
     geojson: r.geojson,
     owner_type: r.owner_type,
     owner_name: r.owner_name,
+    residential_owners: r.residential_owners || [],
+    hide_details_public: !!r.hide_details_public,
     business_id: r.business_id ? String(r.business_id) : null,
     purchase_price: r.purchase_price,
     purchase_date: r.purchase_date,

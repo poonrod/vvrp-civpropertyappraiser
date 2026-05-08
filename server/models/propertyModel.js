@@ -20,12 +20,46 @@ function mapPropertyRow(p) {
   let geojson = p.geojson;
   if (typeof geojson === 'string') geojson = JSON.parse(geojson);
   const { _id, business_id: _b, ...rest } = p;
+  const residential_owners = Array.isArray(p.residential_owners) ? p.residential_owners : [];
   return {
     ...rest,
     id,
     business_id,
     business_name,
+    residential_owners,
+    hide_details_public: !!p.hide_details_public,
     geojson
+  };
+}
+
+function normalizeResidentialOwners(type, ownersInput, ownerName, ownerType) {
+  const fallbackName = ownerName != null ? String(ownerName).trim() : '';
+  const fallbackOt = ownerType === 'Business' ? 'Business' : 'Individual';
+  if (type !== 'Residential') {
+    return {
+      residential_owners: [],
+      owner_name: fallbackName || 'Unknown',
+      owner_type: fallbackOt
+    };
+  }
+  let list = Array.isArray(ownersInput) ? ownersInput : [];
+  list = list
+    .filter((o) => o && String(o.name || '').trim())
+    .map((o) => ({
+      name: String(o.name).trim(),
+      owner_type: o.owner_type === 'Business' ? 'Business' : 'Individual'
+    }));
+  if (list.length === 0 && fallbackName) {
+    list = [{ name: fallbackName, owner_type: fallbackOt }];
+  }
+  if (list.length === 0) {
+    list = [{ name: 'Unknown', owner_type: 'Individual' }];
+  }
+  const primary = list[0];
+  return {
+    residential_owners: list,
+    owner_name: primary.name,
+    owner_type: primary.owner_type
   };
 }
 
@@ -60,6 +94,7 @@ async function listPropertiesForMap(search = '') {
         { parcel_id: rx },
         { address: rx },
         { notes: rx },
+        { residential_owners: { $elemMatch: { name: rx } } },
         ...(businessIds.length ? [{ business_id: { $in: businessIds } }] : [])
       ]
     };
@@ -84,14 +119,22 @@ async function getPropertyById(id) {
 async function createProperty(data) {
   const annualTax = calculateAnnualTax(data.assessed_value, data.tax_rate);
   const parcelId = data.parcel_id || generateParcelId();
+  const own = normalizeResidentialOwners(
+    data.type,
+    data.residential_owners,
+    data.owner_name,
+    data.owner_type
+  );
   const doc = await Property.create({
     parcel_id: parcelId,
     name: data.name,
     type: data.type,
     address: data.address,
     geojson: data.geojson,
-    owner_type: data.owner_type,
-    owner_name: data.owner_name,
+    owner_type: own.owner_type,
+    owner_name: own.owner_name,
+    residential_owners: own.residential_owners,
+    hide_details_public: !!data.hide_details_public,
     business_id: toBusinessObjectId(data.business_id),
     purchase_price: Number(data.purchase_price) || 0,
     purchase_date: data.purchase_date ? new Date(data.purchase_date) : null,
@@ -107,12 +150,20 @@ async function createProperty(data) {
 
 async function updateProperty(id, data) {
   const annualTax = calculateAnnualTax(data.assessed_value, data.tax_rate);
+  const own = normalizeResidentialOwners(
+    data.type,
+    data.residential_owners,
+    data.owner_name,
+    data.owner_type
+  );
   await Property.findByIdAndUpdate(id, {
     name: data.name,
     type: data.type,
     address: data.address,
-    owner_type: data.owner_type,
-    owner_name: data.owner_name,
+    owner_type: own.owner_type,
+    owner_name: own.owner_name,
+    residential_owners: own.residential_owners,
+    hide_details_public: !!data.hide_details_public,
     business_id: toBusinessObjectId(data.business_id),
     purchase_price: Number(data.purchase_price) || 0,
     purchase_date: data.purchase_date ? new Date(data.purchase_date) : null,

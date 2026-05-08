@@ -49,23 +49,33 @@
     <div id="map" role="application" aria-label="Property map"></div>
     <aside id="propertyPanel" class="panel hidden" aria-label="Property details"></aside>
 
-    <% if (user && (user.role === 'admin' || user.role === 'appraiser')) { %>
+    <% if (user && (user.role === 'admin' || user.role === 'appraiser' || user.role === 'clerk')) { %>
     <div id="propertyModal" class="modal hidden">
       <form id="propertyForm">
         <input type="hidden" id="geojsonInput" />
-        <h3>New property</h3>
+        <input type="hidden" id="editPropertyId" value="" />
+        <h3 id="propertyModalTitle">New property</h3>
+        <p id="parcelDisplayRow" class="parcel-display-row hidden"><strong>Parcel</strong> <span id="parcelDisplay"></span></p>
         <input name="name" placeholder="Property name" required />
-        <select name="type" aria-label="Property type"><option>Residential</option><option>Commercial</option><option>Government</option><option>Vacant Land</option></select>
+        <select name="type" id="propertyTypeSelect" aria-label="Property type"><option>Residential</option><option>Commercial</option><option>Government</option><option>Vacant Land</option></select>
         <input name="address" placeholder="RP address" required />
-        <select name="owner_type" aria-label="Owner type"><option>Individual</option><option>Business</option></select>
-        <input name="owner_name" placeholder="Owner name" required />
+        <div id="singleOwnerFields" class="owner-fields-group">
+          <select name="owner_type" aria-label="Owner type"><option>Individual</option><option>Business</option></select>
+          <input name="owner_name" placeholder="Owner name" />
+        </div>
+        <div id="residentialOwnersBlock" class="owner-fields-group hidden">
+          <span class="field-label">Owners (Residential — multiple for RP)</span>
+          <div id="coOwnersList" class="co-owners-list"></div>
+          <button type="button" class="btn btn-ghost btn-compact" id="addCoOwner">Add owner</button>
+        </div>
         <input name="purchase_price" placeholder="Purchase price" type="number" step="0.01" />
         <input name="purchase_date" type="date" />
         <input name="assessed_value" placeholder="Assessed value" type="number" step="0.01" />
         <input name="tax_rate" placeholder="Tax rate %" type="number" step="0.01" />
         <select name="status" aria-label="Status"><option>Owned</option><option>For Sale</option><option>Foreclosed</option><option>Government Seized</option></select>
+        <label class="checkbox-label"><input type="checkbox" id="hideDetailsPublic" /> Hide appraiser details from the public (parcel outline only)</label>
         <textarea name="notes" placeholder="Notes" rows="3"></textarea>
-        <button type="submit">Save property</button>
+        <button type="submit" id="propertyFormSubmit">Save property</button>
         <button type="button" id="closeModal">Cancel</button>
       </form>
     </div>

@@ -9,6 +9,32 @@ const {
   getPropertyById,
   calculateAnnualTax
 } = require('../models/propertyModel');
+
+const STAFF_ROLES = ['admin', 'appraiser', 'clerk'];
+
+function isStaff(user) {
+  return !!(user && STAFF_ROLES.includes(user.role));
+}
+
+/** Strip appraiser-only fields for parcels marked hidden from the public. */
+function applyPropertyVisibility(row, user) {
+  if (!row) return row;
+  if (isStaff(user) || !row.hide_details_public) {
+    return { ...row, details_public_hidden: false };
+  }
+  return {
+    id: row.id,
+    name: row.name,
+    parcel_id: row.parcel_id,
+    address: row.address,
+    type: row.type,
+    status: row.status,
+    geojson: row.geojson,
+    updated_at: row.updated_at,
+    hide_details_public: true,
+    details_public_hidden: true
+  };
+}
 const { createTransaction, getTransactionsByProperty } = require('../models/transactionModel');
 const { createAuditLog } = require('../models/auditLogModel');
 const { stringify } = require('csv-stringify/sync');
@@ -25,13 +51,28 @@ async function safeAudit(run) {
 async function listProperties(req, res) {
   try {
     const rows = await listPropertiesForMap(req.query.search || '');
-    rows.forEach((r) => {
+    const user = req.session.user || null;
+    const out = rows.map((r) => {
       if (typeof r.geojson === 'string') r.geojson = JSON.parse(r.geojson);
+      return applyPropertyVisibility(r, user);
     });
-    res.json(rows);
+    res.json(out);
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Could not list properties' });
+  }
+}
+
+async function getOne(req, res) {
+  try {
+    const row = await getPropertyById(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    if (typeof row.geojson === 'string') row.geojson = JSON.parse(row.geojson);
+    const user = req.session.user || null;
+    res.json(applyPropertyVisibility(row, user));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Could not load property' });
   }
 }
 
@@ -69,7 +110,8 @@ async function update(req, res) {
   const current = await getPropertyById(req.params.id);
   if (!current) return res.status(404).json({ error: 'Not found' });
   try {
-    await updateProperty(req.params.id, req.body);
+    const payload = { ...req.body, geojson: current.geojson };
+    await updateProperty(req.params.id, payload);
     await safeAudit(() =>
       createAuditLog({
         userId: req.session.user.id,
@@ -77,10 +119,13 @@ async function update(req, res) {
         tableName: 'properties',
         recordId: req.params.id,
         oldData: current,
-        newData: req.body
+        newData: payload
       })
     );
-    res.json({ success: true, annual_tax: calculateAnnualTax(req.body.assessed_value, req.body.tax_rate) });
+    res.json({
+      success: true,
+      annual_tax: calculateAnnualTax(req.body.assessed_value, req.body.tax_rate)
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Could not update property' });
@@ -135,10 +180,22 @@ async function transfer(req, res) {
       created_by: req.session.user.id
     });
 
+    let residential_owners = property.residential_owners || [];
+    if (
+      property.type === 'Residential' &&
+      Array.isArray(residential_owners) &&
+      residential_owners.length > 0
+    ) {
+      residential_owners = residential_owners.map((o, i) =>
+        i === 0 ? { ...o, name: req.body.to_owner } : o
+      );
+    }
+
     await updateProperty(property.id, {
       ...property,
       owner_name: req.body.to_owner,
-      owner_type: req.body.owner_type || property.owner_type
+      owner_type: req.body.owner_type || property.owner_type,
+      residential_owners
     });
 
     res.json({ success: true });
@@ -179,7 +236,18 @@ async function exportPdf(req, res) {
   doc.fontSize(12).text(`Property Name: ${property.name}`);
   doc.text(`Parcel ID: ${property.parcel_id}`);
   doc.text(`Address: ${property.address}`);
-  doc.text(`Owner: ${property.owner_name} (${property.owner_type})`);
+  if (
+    property.type === 'Residential' &&
+    Array.isArray(property.residential_owners) &&
+    property.residential_owners.length > 0
+  ) {
+    doc.text('Owners:');
+    property.residential_owners.forEach((o, i) => {
+      doc.text(`  ${i + 1}. ${o.name} (${o.owner_type})`);
+    });
+  } else {
+    doc.text(`Owner: ${property.owner_name} (${property.owner_type})`);
+  }
   doc.text(`Purchase Price: $${Number(property.purchase_price || 0).toLocaleString()}`);
   doc.text(`Assessed Value: $${Number(property.assessed_value || 0).toLocaleString()}`);
   doc.text(`Annual Tax: $${Number(property.annual_tax || 0).toLocaleString()}`);
@@ -189,4 +257,15 @@ async function exportPdf(req, res) {
   doc.end();
 }
 
-module.exports = { listProperties, create, update, updateGeo, remove, transfer, transactions, exportCsv, exportPdf };
+module.exports = {
+  listProperties,
+  getOne,
+  create,
+  update,
+  updateGeo,
+  remove,
+  transfer,
+  transactions,
+  exportCsv,
+  exportPdf
+};

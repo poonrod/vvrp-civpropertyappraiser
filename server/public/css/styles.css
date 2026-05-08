@@ -406,7 +406,7 @@ body.layout-map {
 
 .modal form {
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   max-height: 90vh;
   overflow: auto;
   padding: 24px;
@@ -472,6 +472,103 @@ body.layout-map {
 
 .modal #closeModal:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold-muted);
+  margin-bottom: 6px;
+}
+
+.owner-fields-group {
+  display: grid;
+  gap: 8px;
+}
+
+.co-owners-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.co-owner-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-remove-co {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-remove-co:hover {
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.btn-compact {
+  justify-self: start;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.checkbox-label input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.parcel-display-row {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.panel-notice {
+  padding: 10px 12px;
+  margin: -4px -6px 14px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--gold-muted);
+}
+
+.owner-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.owner-list li {
+  margin-bottom: 4px;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 /* ——— Admin / generic pages ——— */

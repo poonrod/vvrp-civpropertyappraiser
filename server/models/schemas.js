@@ -50,6 +50,16 @@ const propertySchema = new Schema(
       default: 'Owned'
     },
     notes: { type: String, default: null },
+    residential_owners: {
+      type: [
+        {
+          name: { type: String, required: true },
+          owner_type: { type: String, enum: ['Individual', 'Business'], default: 'Individual' }
+        }
+      ],
+      default: []
+    },
+    hide_details_public: { type: Boolean, default: false },
     created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
