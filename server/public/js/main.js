@@ -158,8 +158,14 @@ const sqftHint = document.getElementById('sqftHint');
 const assessedValueInput = document.getElementById('assessedValueInput');
 const workOrderSelect = document.getElementById('workOrderSelect');
 const workOrderGroup = document.getElementById('workOrderGroup');
+const ownerTypeSelect = document.getElementById('ownerTypeSelect');
+const businessNameGroup = document.getElementById('businessNameGroup');
+const businessNameInput = document.getElementById('businessNameInput');
+const businessIdInput = document.getElementById('businessIdInput');
+const businessSuggestions = document.getElementById('businessSuggestions');
 let pendingWorkOrders = [];
 let selectedWorkOrderId = null;
+let bizSearchTimeout = null;
 
 const taxPresetMap = new Map();
 if (taxZoneSelect) {
@@ -238,6 +244,53 @@ function syncOwnerFieldsVisibility() {
   residentialOwnersBlock.classList.toggle('hidden', !res);
   singleOwnerFields.classList.toggle('hidden', res);
   if (res && coOwnersList && coOwnersList.children.length === 0) addCoOwnerRow();
+  syncBusinessNameVisibility();
+}
+
+function syncBusinessNameVisibility() {
+  if (!businessNameGroup || !ownerTypeSelect) return;
+  const isBiz = ownerTypeSelect.value === 'Business';
+  const isResidential = propertyTypeSelect?.value === 'Residential';
+  businessNameGroup.classList.toggle('hidden', isResidential || !isBiz);
+}
+
+function clearBusinessSelection() {
+  if (businessIdInput) businessIdInput.value = '';
+  if (businessNameInput) businessNameInput.value = '';
+  if (businessSuggestions) { businessSuggestions.innerHTML = ''; businessSuggestions.classList.add('hidden'); }
+}
+
+async function fetchBusinessSuggestions(query) {
+  if (!query || query.length < 1) {
+    if (businessSuggestions) { businessSuggestions.innerHTML = ''; businessSuggestions.classList.add('hidden'); }
+    return;
+  }
+  try {
+    const r = await fetch(`/api/businesses/search?q=${encodeURIComponent(query)}`, { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const results = await r.json();
+    if (!businessSuggestions) return;
+    businessSuggestions.innerHTML = '';
+    if (results.length === 0) {
+      businessSuggestions.classList.add('hidden');
+      return;
+    }
+    results.forEach((biz) => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.textContent = biz.name;
+      item.dataset.id = biz.id;
+      item.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        if (businessNameInput) businessNameInput.value = biz.name;
+        if (businessIdInput) businessIdInput.value = biz.id;
+        businessSuggestions.innerHTML = '';
+        businessSuggestions.classList.add('hidden');
+      });
+      businessSuggestions.appendChild(item);
+    });
+    businessSuggestions.classList.remove('hidden');
+  } catch { /* ignore */ }
 }
 
 function addCoOwnerRow(name = '', ownerType = 'Individual') {
@@ -299,6 +352,7 @@ function resetFormForNew() {
   if (workOrderSelect) workOrderSelect.value = '';
   selectedWorkOrderId = null;
   if (workOrderGroup) workOrderGroup.classList.toggle('hidden', !!editPropertyId?.value);
+  clearBusinessSelection();
 }
 
 function fillFormFromProperty(data) {
@@ -328,6 +382,12 @@ function fillFormFromProperty(data) {
   } else {
     setVal('owner_name', data.owner_name || '');
     setVal('owner_type', data.owner_type || 'Individual');
+    if (data.owner_type === 'Business') {
+      if (businessNameInput) businessNameInput.value = data.business_name || '';
+      if (businessIdInput) businessIdInput.value = data.business_id || '';
+    } else {
+      clearBusinessSelection();
+    }
   }
   syncOwnerFieldsVisibility();
   syncTaxRateUI(false);
@@ -367,6 +427,10 @@ function buildPayloadFromForm(geojson) {
     if (!String(payload.owner_name || '').trim()) {
       throw new Error('Owner name required');
     }
+    if (payload.owner_type === 'Business') {
+      payload.business_name = businessNameInput?.value?.trim() || '';
+      payload.business_id = businessIdInput?.value || '';
+    }
   }
   return payload;
 }
@@ -390,6 +454,21 @@ if (user && (user.role === 'admin' || user.role === 'appraiser')) {
 propertyTypeSelect?.addEventListener('change', () => {
   syncOwnerFieldsVisibility();
   syncTaxRateUI(true);
+});
+ownerTypeSelect?.addEventListener('change', () => {
+  syncBusinessNameVisibility();
+  if (ownerTypeSelect.value !== 'Business') clearBusinessSelection();
+});
+businessNameInput?.addEventListener('input', () => {
+  if (businessIdInput) businessIdInput.value = '';
+  clearTimeout(bizSearchTimeout);
+  bizSearchTimeout = setTimeout(() => fetchBusinessSuggestions(businessNameInput.value.trim()), 250);
+});
+businessNameInput?.addEventListener('blur', () => {
+  setTimeout(() => { if (businessSuggestions) businessSuggestions.classList.add('hidden'); }, 200);
+});
+businessNameInput?.addEventListener('focus', () => {
+  if (businessNameInput.value.trim()) fetchBusinessSuggestions(businessNameInput.value.trim());
 });
 taxZoneSelect?.addEventListener('change', () => syncTaxRateUI(true));
 document.getElementById('addCoOwner')?.addEventListener('click', () => addCoOwnerRow());
@@ -416,7 +495,11 @@ function ownersDetailHtml(p) {
       )
       .join('')}</ul>`;
   }
-  return `<p class="detail"><strong>Owner</strong> ${escapeHtml(String(p.owner_name))} (${escapeHtml(String(p.owner_type))})</p>`;
+  let html = `<p class="detail"><strong>Owner</strong> ${escapeHtml(String(p.owner_name))} (${escapeHtml(String(p.owner_type))})</p>`;
+  if (p.business_name) {
+    html += `<p class="detail"><strong>Business</strong> ${escapeHtml(String(p.business_name))}</p>`;
+  }
+  return html;
 }
 
 async function openEditModal(propertyId) {

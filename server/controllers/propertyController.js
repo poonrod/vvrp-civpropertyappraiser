@@ -37,6 +37,7 @@ function applyPropertyVisibility(row, user) {
   };
 }
 const { createTransaction, getTransactionsByProperty } = require('../models/transactionModel');
+const { findOrCreateByName } = require('../models/businessModel');
 const { createAuditLog } = require('../models/auditLogModel');
 const { stringify } = require('csv-stringify/sync');
 const PDFDocument = require('pdfkit');
@@ -83,6 +84,9 @@ async function create(req, res) {
   if (!geojsonValidation.valid(req.body.geojson)) return res.status(400).json({ error: 'Invalid GeoJSON' });
 
   try {
+    if (req.body.business_name && !req.body.business_id) {
+      req.body.business_id = await findOrCreateByName(req.body.business_name);
+    }
     const created = await createProperty({ ...req.body, created_by: req.session.user.id });
     await safeAudit(() =>
       createAuditLog({
@@ -137,6 +141,9 @@ async function update(req, res) {
   const current = await getPropertyById(req.params.id);
   if (!current) return res.status(404).json({ error: 'Not found' });
   try {
+    if (req.body.business_name && !req.body.business_id) {
+      req.body.business_id = await findOrCreateByName(req.body.business_name);
+    }
     const payload = { ...req.body, geojson: current.geojson };
 
     const ownerChanges = await detectOwnerChanges(current, payload);

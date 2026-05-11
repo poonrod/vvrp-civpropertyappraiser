@@ -1158,6 +1158,44 @@ body.layout-map {
   color: var(--text-muted);
 }
 
+/* ── Business name autocomplete ───────────────────── */
+.business-name-group {
+  margin-top: 6px;
+  width: 100%;
+}
+.autocomplete-wrap {
+  position: relative;
+  width: 100%;
+}
+.autocomplete-wrap input {
+  width: 100%;
+}
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+}
+.autocomplete-item:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
 /* ── Delete property button & confirmation ────────── */
 .btn-delete-prop {
   background: #c0392b;

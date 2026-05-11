@@ -36,4 +36,20 @@ async function getBusinessById(id) {
   return row ? mapBusiness(row) : null;
 }
 
-module.exports = { listBusinesses, createBusiness, getBusinessById };
+async function searchBusinesses(query) {
+  if (!query || !query.trim()) return [];
+  const rx = new RegExp(String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const rows = await Business.find({ name: rx }).sort({ name: 1 }).limit(15).lean();
+  return rows.map(mapBusiness);
+}
+
+async function findOrCreateByName(name) {
+  const trimmed = String(name).trim();
+  if (!trimmed) return null;
+  const existing = await Business.findOne({ name: { $regex: new RegExp(`^${trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
+  if (existing) return existing._id.toString();
+  const doc = await Business.create({ name: trimmed });
+  return doc._id.toString();
+}
+
+module.exports = { listBusinesses, createBusiness, getBusinessById, searchBusinesses, findOrCreateByName };

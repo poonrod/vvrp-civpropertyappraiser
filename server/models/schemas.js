@@ -18,12 +18,13 @@ const userSchema = new Schema(
 const businessSchema = new Schema(
   {
     name: { type: String, required: true },
-    license_id: { type: String, required: true, unique: true },
-    type: { type: String, required: true },
-    ceo_name: { type: String, required: true }
+    license_id: { type: String, default: null },
+    type: { type: String, default: null },
+    ceo_name: { type: String, default: null }
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
+businessSchema.index({ license_id: 1 }, { unique: true, sparse: true });
 
 const propertySchema = new Schema(
   {
@@ -154,9 +155,12 @@ const loginLogSchema = new Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: false } }
 );
 
+const BusinessModel = mongoose.models.Business || mongoose.model('Business', businessSchema);
+BusinessModel.syncIndexes().catch((e) => console.error('[Business] syncIndexes:', e.message));
+
 module.exports = {
   User: mongoose.models.User || mongoose.model('User', userSchema),
-  Business: mongoose.models.Business || mongoose.model('Business', businessSchema),
+  Business: BusinessModel,
   Property: mongoose.models.Property || mongoose.model('Property', propertySchema),
   PropertyTransaction:
     mongoose.models.PropertyTransaction || mongoose.model('PropertyTransaction', propertyTransactionSchema),

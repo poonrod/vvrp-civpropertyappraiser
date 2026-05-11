@@ -67,8 +67,15 @@
         <select name="type" id="propertyTypeSelect" aria-label="Property type"><option>Residential</option><option>Commercial</option><option>Government</option><option>Vacant Land</option></select>
         <input name="address" placeholder="RP address" required />
         <div id="singleOwnerFields" class="owner-fields-group">
-          <select name="owner_type" aria-label="Owner type"><option>Individual</option><option>Business</option></select>
+          <select name="owner_type" id="ownerTypeSelect" aria-label="Owner type"><option>Individual</option><option>Business</option></select>
           <input name="owner_name" placeholder="Owner name" />
+          <div id="businessNameGroup" class="business-name-group hidden">
+            <div class="autocomplete-wrap">
+              <input type="text" id="businessNameInput" name="business_name" placeholder="Business / Company name" autocomplete="off" />
+              <input type="hidden" id="businessIdInput" name="business_id" value="" />
+              <div id="businessSuggestions" class="autocomplete-dropdown hidden"></div>
+            </div>
+          </div>
         </div>
         <div id="residentialOwnersBlock" class="owner-fields-group hidden">
           <span class="field-label">Owners (Residential — multiple for RP)</span>
