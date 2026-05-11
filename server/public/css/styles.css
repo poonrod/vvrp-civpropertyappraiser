@@ -1158,6 +1158,39 @@ body.layout-map {
   color: var(--text-muted);
 }
 
+/* ── Requires Survey styling ─────────────────────── */
+.survey-banner {
+  background: #e74c3c;
+  color: #fff;
+  text-align: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+.survey-prompt {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+  margin: 12px 0;
+}
+.btn-survey-save {
+  background: #e87e73;
+  color: #fff;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 4px;
+  border: none;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-survey-save:hover {
+  background: #d64545;
+}
+
 /* ── Business name autocomplete ───────────────────── */
 .business-name-group {
   margin-top: 6px;

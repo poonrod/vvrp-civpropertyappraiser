@@ -156,6 +156,7 @@ const taxZoneSelect = document.getElementById('taxZoneSelect');
 const sqftInput = document.getElementById('sqftInput');
 const sqftHint = document.getElementById('sqftHint');
 const assessedValueInput = document.getElementById('assessedValueInput');
+const markSurveyBtn = document.getElementById('markSurveyBtn');
 const workOrderSelect = document.getElementById('workOrderSelect');
 const workOrderGroup = document.getElementById('workOrderGroup');
 const ownerTypeSelect = document.getElementById('ownerTypeSelect');
@@ -352,6 +353,7 @@ function resetFormForNew() {
   if (workOrderSelect) workOrderSelect.value = '';
   selectedWorkOrderId = null;
   if (workOrderGroup) workOrderGroup.classList.toggle('hidden', !!editPropertyId?.value);
+  if (markSurveyBtn) markSurveyBtn.classList.remove('hidden');
   clearBusinessSelection();
 }
 
@@ -475,6 +477,15 @@ document.getElementById('addCoOwner')?.addEventListener('click', () => addCoOwne
 sqftInput?.addEventListener('input', () => autoCalcAssessedValue());
 
 function styleForProperty(p) {
+  if (p.status === 'Requires Survey') {
+    return {
+      color: '#e74c3c',
+      weight: 2,
+      dashArray: '6 4',
+      fillColor: '#e87e73',
+      fillOpacity: 0.45
+    };
+  }
   const fillMap = { Residential: '#2f80ed', Commercial: '#f2994a', Government: '#27ae60', 'Vacant Land': '#7b8794' };
   const color = p.status === 'Foreclosed' ? '#d64545' : p.status === 'For Sale' ? '#f0b429' : '#1f2933';
   const hiddenPublic = p.details_public_hidden && !isStaff();
@@ -515,12 +526,13 @@ async function openEditModal(propertyId) {
   if (!data || data.error || data.details_public_hidden) return;
 
   editPropertyId.value = propertyId;
-  propertyModalTitle.textContent = 'Edit property';
+  propertyModalTitle.textContent = data.status === 'Requires Survey' ? 'Complete survey' : 'Edit property';
   parcelDisplayRow?.classList.remove('hidden');
   if (parcelDisplay) parcelDisplay.textContent = data.parcel_id || '';
   propertyFormSubmit.textContent = 'Save changes';
   document.getElementById('geojsonInput').value = JSON.stringify(data.geojson);
   fillFormFromProperty(data);
+  if (markSurveyBtn) markSurveyBtn.classList.add('hidden');
   propertyModal.classList.remove('hidden');
 }
 
@@ -552,7 +564,21 @@ function renderPanel(p) {
       ? `<button type="button" class="btn btn-panel btn-delete-prop" id="deletePropBtn">Delete Property</button>`
       : '';
 
-  if (hidden) {
+  if (p.status === 'Requires Survey') {
+    panel.innerHTML = `
+    <div class="panel__inner">
+    <div class="survey-banner">Requires Survey</div>
+    <h3>${escapeHtml(p.name || 'Unmarked Parcel')}</h3>
+    <p class="detail"><strong>Parcel</strong> ${escapeHtml(String(p.parcel_id))}</p>
+    ${p.address ? `<p class="detail"><strong>Address</strong> ${escapeHtml(String(p.address))}</p>` : ''}
+    ${p.notes ? `<p class="detail"><strong>Notes</strong> ${escapeHtml(String(p.notes))}</p>` : ''}
+    <p class="detail"><strong>Created</strong> ${escapeHtml(String(p.updated_at || ''))}</p>
+    <p class="survey-prompt">Click "Edit details" to complete this property's information.</p>
+    ${editBtn}
+    ${deleteBtn}
+    <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
+    </div>`;
+  } else if (hidden) {
     panel.innerHTML = `
     <div class="panel__inner">
     <div class="panel-notice">Registered parcel — details are not published.</div>
@@ -904,6 +930,63 @@ propertyForm?.addEventListener('submit', async (e) => {
 document.getElementById('closeModal')?.addEventListener('click', () => {
   propertyModal?.classList.add('hidden');
   resetFormForNew();
+});
+
+document.getElementById('markSurveyBtn')?.addEventListener('click', async () => {
+  const gjEl = document.getElementById('geojsonInput');
+  let geojson;
+  try {
+    geojson = JSON.parse(gjEl?.value || 'null');
+  } catch {
+    alert('Invalid GeoJSON');
+    return;
+  }
+  if (!geojson) { alert('Draw a property line first'); return; }
+
+  const editingId = editPropertyId?.value?.trim();
+  if (editingId) {
+    const fd = new FormData(propertyForm);
+    fd.set('status', 'Requires Survey');
+    const payload = {
+      name: fd.get('name') || 'Unmarked Parcel',
+      type: fd.get('type') || 'Residential',
+      address: fd.get('address') || 'TBD',
+      owner_name: fd.get('owner_name') || 'TBD',
+      owner_type: fd.get('owner_type') || 'Individual',
+      status: 'Requires Survey',
+      notes: fd.get('notes') || null,
+      geojson
+    };
+    const res = await fetch(`/api/properties/${encodeURIComponent(editingId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) { alert('Failed to update'); return; }
+  } else {
+    const payload = {
+      name: propertyForm?.querySelector('[name="name"]')?.value?.trim() || 'Unmarked Parcel',
+      type: propertyTypeSelect?.value || 'Residential',
+      address: propertyForm?.querySelector('[name="address"]')?.value?.trim() || 'TBD',
+      owner_name: 'TBD',
+      owner_type: 'Individual',
+      residential_owners: [],
+      status: 'Requires Survey',
+      notes: propertyForm?.querySelector('[name="notes"]')?.value?.trim() || null,
+      geojson
+    };
+    const res = await fetch('/api/properties', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) { alert('Failed to save survey marker'); return; }
+  }
+  propertyModal?.classList.add('hidden');
+  resetFormForNew();
+  loadProperties(searchInput?.value || '');
 });
 
 syncOwnerFieldsVisibility();
