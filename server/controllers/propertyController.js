@@ -266,7 +266,8 @@ async function transfer(req, res) {
       ...property,
       owner_name: newPrimary,
       owner_type: req.body.owner_type || property.owner_type,
-      residential_owners
+      residential_owners,
+      status: property.status === 'For Sale' ? 'Owned' : property.status
     };
 
     if (req.body.owner_type === 'Business' && req.body.business_id) {
