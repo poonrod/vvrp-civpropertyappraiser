@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get('/', controller.listProperties);
 router.get('/export/csv', controller.exportCsv);
+router.get('/tax-rates', controller.taxRates);
 router.get('/:id/transactions', controller.transactions);
 router.get('/:id/export/pdf', controller.exportPdf);
 router.get('/:id', controller.getOne);

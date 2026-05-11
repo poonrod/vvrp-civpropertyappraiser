@@ -69,6 +69,17 @@ function generateParcelId() {
   return `SA-${p1}-${p2}`;
 }
 
+const DEFAULT_TAX_RATES = {
+  Residential: 1.1,
+  Commercial: 1.25,
+  Government: 0,
+  'Vacant Land': 0.5
+};
+
+function defaultTaxRateForType(propertyType) {
+  return DEFAULT_TAX_RATES[propertyType] ?? 0;
+}
+
 function calculateAnnualTax(assessedValue, taxRate) {
   return (Number(assessedValue) || 0) * ((Number(taxRate) || 0) / 100);
 }
@@ -139,6 +150,7 @@ async function createProperty(data) {
     purchase_price: Number(data.purchase_price) || 0,
     purchase_date: data.purchase_date ? new Date(data.purchase_date) : null,
     assessed_value: Number(data.assessed_value) || 0,
+    tax_zone: data.tax_zone || null,
     tax_rate: Number(data.tax_rate) || 0,
     annual_tax: annualTax,
     status: data.status,
@@ -168,6 +180,7 @@ async function updateProperty(id, data) {
     purchase_price: Number(data.purchase_price) || 0,
     purchase_date: data.purchase_date ? new Date(data.purchase_date) : null,
     assessed_value: Number(data.assessed_value) || 0,
+    tax_zone: data.tax_zone || null,
     tax_rate: Number(data.tax_rate) || 0,
     annual_tax: annualTax,
     status: data.status,
@@ -192,5 +205,7 @@ module.exports = {
   updatePropertyGeojson,
   deleteProperty,
   generateParcelId,
-  calculateAnnualTax
+  calculateAnnualTax,
+  DEFAULT_TAX_RATES,
+  defaultTaxRateForType
 };

@@ -4,6 +4,12 @@ const { AuditLog, LoginLog, Property, PropertyTransaction } = require('../models
 const { listUsers, updateUserRole } = require('../models/userModel');
 const { listPropertiesForMap, createProperty } = require('../models/propertyModel');
 const { listBusinesses } = require('../models/businessModel');
+const {
+  listTaxPresets,
+  createTaxPreset,
+  updateTaxPreset,
+  deleteTaxPreset
+} = require('../models/taxPresetModel');
 
 const router = express.Router();
 
@@ -11,13 +17,22 @@ router.get('/', requireAuth, async (req, res) => {
   const props = await listPropertiesForMap('');
   const businesses = await listBusinesses();
   const audit = await AuditLog.find().sort({ created_at: -1 }).limit(30).lean();
+  const residentialProps = props.filter((p) => p.type === 'Residential');
+  const commercialProps = props.filter((p) => p.type === 'Commercial');
+  const residentialTaxRevenue = residentialProps.reduce((sum, p) => sum + Number(p.annual_tax || 0), 0);
+  const commercialTaxRevenue = commercialProps.reduce((sum, p) => sum + Number(p.annual_tax || 0), 0);
+  const totalTaxRevenue = props.reduce((sum, p) => sum + Number(p.annual_tax || 0), 0);
+
   res.render('admin/dashboard', {
     stats: {
       totalProperties: props.length,
       totalValue: props.reduce((sum, p) => sum + Number(p.assessed_value || 0), 0),
-      residentialCount: props.filter((p) => p.type === 'Residential').length,
-      commercialCount: props.filter((p) => p.type === 'Commercial').length,
-      totalBusinesses: businesses.length
+      residentialCount: residentialProps.length,
+      commercialCount: commercialProps.length,
+      totalBusinesses: businesses.length,
+      residentialTaxRevenue,
+      commercialTaxRevenue,
+      totalTaxRevenue
     },
     recentProperties: props.slice(0, 10),
     audit
@@ -61,6 +76,7 @@ router.get('/export/json', requireAuth, requireRole('admin'), async (req, res) =
     purchase_price: r.purchase_price,
     purchase_date: r.purchase_date,
     assessed_value: r.assessed_value,
+    tax_zone: r.tax_zone || null,
     tax_rate: r.tax_rate,
     annual_tax: r.annual_tax,
     status: r.status,
@@ -90,6 +106,41 @@ router.post('/import/geojson', requireAuth, requireRole('admin'), express.json()
     });
   }
   res.json({ imported: features.length });
+});
+
+router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
+  const presets = await listTaxPresets();
+  res.render('admin/settings', { presets, error: req.query.error || null });
+});
+
+router.post('/settings/tax-presets', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    await createTaxPreset(req.body);
+  } catch (e) {
+    if (e.code === 11000) {
+      return res.redirect('/admin/settings?error=duplicate');
+    }
+    console.error(e);
+  }
+  res.redirect('/admin/settings');
+});
+
+router.post('/settings/tax-presets/:id/update', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    await updateTaxPreset(req.params.id, req.body);
+  } catch (e) {
+    console.error(e);
+  }
+  res.redirect('/admin/settings');
+});
+
+router.post('/settings/tax-presets/:id/delete', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    await deleteTaxPreset(req.params.id);
+  } catch (e) {
+    console.error(e);
+  }
+  res.redirect('/admin/settings');
 });
 
 module.exports = router;

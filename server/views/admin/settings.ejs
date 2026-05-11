@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-header__lead">
+        <%- include('../partials/brand') %>
+        <p class="site-header__context">Admin settings</p>
+      </div>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/">Map</a>
+        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/admin/users">Users</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <section>
+      <h3>Tax Zone Presets</h3>
+      <p class="lead">Set tax rates per area. When creating or editing a property, staff can pick a zone to auto-fill the tax rate.</p>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="settings-error">A preset with that name already exists.</div>
+      <% } %>
+
+      <table class="preset-table">
+        <thead>
+          <tr>
+            <th>Zone Name</th>
+            <th>Residential %</th>
+            <th>Commercial %</th>
+            <th>Government %</th>
+            <th>Vacant Land %</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% presets.forEach((p) => { %>
+          <tr>
+            <form action="/admin/settings/tax-presets/<%= p._id %>/update" method="post" class="preset-row-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <td><input name="name" value="<%= p.name %>" required class="preset-input preset-input--name" /></td>
+              <td><input name="residential_rate" type="number" step="0.01" value="<%= p.residential_rate %>" class="preset-input" /></td>
+              <td><input name="commercial_rate" type="number" step="0.01" value="<%= p.commercial_rate %>" class="preset-input" /></td>
+              <td><input name="government_rate" type="number" step="0.01" value="<%= p.government_rate %>" class="preset-input" /></td>
+              <td><input name="vacant_land_rate" type="number" step="0.01" value="<%= p.vacant_land_rate %>" class="preset-input" /></td>
+              <td class="preset-actions">
+                <button type="submit" class="btn btn-compact">Save</button>
+            </form>
+            <form action="/admin/settings/tax-presets/<%= p._id %>/delete" method="post" class="preset-row-form" onsubmit="return confirm('Delete this preset?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+              <button type="submit" class="btn btn-compact btn-danger">Delete</button>
+            </form>
+              </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Add New Zone</h3>
+      <form action="/admin/settings/tax-presets" method="post" class="preset-add-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <div class="preset-add-grid">
+          <div>
+            <label class="field-label">Zone Name</label>
+            <input name="name" placeholder="e.g. Paleto Bay" required />
+          </div>
+          <div>
+            <label class="field-label">Residential %</label>
+            <input name="residential_rate" type="number" step="0.01" value="1.1" />
+          </div>
+          <div>
+            <label class="field-label">Commercial %</label>
+            <input name="commercial_rate" type="number" step="0.01" value="1.25" />
+          </div>
+          <div>
+            <label class="field-label">Government %</label>
+            <input name="government_rate" type="number" step="0.01" value="0" />
+          </div>
+          <div>
+            <label class="field-label">Vacant Land %</label>
+            <input name="vacant_land_rate" type="number" step="0.01" value="0.5" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top:12px">Add Zone Preset</button>
+      </form>
+    </section>
+  </div>
+</body>
+</html>

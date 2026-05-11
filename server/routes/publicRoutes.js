@@ -1,6 +1,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { DEFAULT_TAX_RATES } = require('../models/propertyModel');
+const { listTaxPresets } = require('../models/taxPresetModel');
 
 const router = express.Router();
 
@@ -25,14 +27,20 @@ function loadBundledMapConfig() {
   return cfg;
 }
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   let config = {};
   try {
     config = loadBundledMapConfig();
   } catch (e) {
     console.error('[publicRoutes] Bundled map config missing or invalid:', e.message);
   }
-  res.render('index', { config });
+  let taxPresets = [];
+  try {
+    taxPresets = await listTaxPresets();
+  } catch (e) {
+    console.error('[publicRoutes] Could not load tax presets:', e.message);
+  }
+  res.render('index', { config, taxRates: DEFAULT_TAX_RATES, taxPresets });
 });
 
 module.exports = router;

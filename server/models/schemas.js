@@ -42,6 +42,7 @@ const propertySchema = new Schema(
     purchase_price: { type: Number, default: 0 },
     purchase_date: { type: Date, default: null },
     assessed_value: { type: Number, default: 0 },
+    tax_zone: { type: String, default: null },
     tax_rate: { type: Number, default: 0 },
     annual_tax: { type: Number, default: 0 },
     status: {
@@ -78,6 +79,17 @@ const propertyTransactionSchema = new Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
 
+const taxPresetSchema = new Schema(
+  {
+    name: { type: String, required: true, unique: true },
+    residential_rate: { type: Number, required: true, default: 1.1 },
+    commercial_rate: { type: Number, required: true, default: 1.25 },
+    government_rate: { type: Number, default: 0 },
+    vacant_land_rate: { type: Number, default: 0.5 }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
 const auditLogSchema = new Schema(
   {
     user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -105,6 +117,7 @@ module.exports = {
   Property: mongoose.models.Property || mongoose.model('Property', propertySchema),
   PropertyTransaction:
     mongoose.models.PropertyTransaction || mongoose.model('PropertyTransaction', propertyTransactionSchema),
+  TaxPreset: mongoose.models.TaxPreset || mongoose.model('TaxPreset', taxPresetSchema),
   AuditLog: mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema),
   LoginLog: mongoose.models.LoginLog || mongoose.model('LoginLog', loginLogSchema)
 };

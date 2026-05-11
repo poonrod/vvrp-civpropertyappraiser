@@ -3,6 +3,8 @@ const panel = document.getElementById('propertyPanel');
 const legend = document.getElementById('legend');
 const searchInput = document.getElementById('searchInput');
 const user = window.SAPA_USER;
+const defaultTaxRates = window.SAPA_TAX_RATES || {};
+const taxPresets = window.SAPA_TAX_PRESETS || [];
 
 const STAFF_ROLES = ['admin', 'appraiser', 'clerk'];
 function isStaff() {
@@ -146,6 +148,64 @@ const parcelDisplayRow = document.getElementById('parcelDisplayRow');
 const parcelDisplay = document.getElementById('parcelDisplay');
 const hideDetailsPublic = document.getElementById('hideDetailsPublic');
 const propertyFormSubmit = document.getElementById('propertyFormSubmit');
+const taxRateInput = document.getElementById('taxRateInput');
+const taxRateLabel = document.getElementById('taxRateLabel');
+const taxRateHint = document.getElementById('taxRateHint');
+const taxZoneSelect = document.getElementById('taxZoneSelect');
+
+const taxPresetMap = new Map();
+if (taxZoneSelect) {
+  taxPresets.forEach((p) => {
+    const name = p.name || '';
+    taxPresetMap.set(name, p);
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    taxZoneSelect.appendChild(opt);
+  });
+}
+
+function taxLabelForType(type) {
+  if (type === 'Residential') return 'Residential Property Tax Rate';
+  if (type === 'Commercial') return 'Commercial Property Tax Rate';
+  return 'Property Tax Rate';
+}
+
+function rateFromPreset(presetName, propertyType) {
+  const p = taxPresetMap.get(presetName);
+  if (!p) return null;
+  const map = {
+    Residential: p.residential_rate,
+    Commercial: p.commercial_rate,
+    Government: p.government_rate,
+    'Vacant Land': p.vacant_land_rate
+  };
+  return map[propertyType] ?? null;
+}
+
+function syncTaxRateUI(autoFill) {
+  if (!propertyTypeSelect) return;
+  const type = propertyTypeSelect.value;
+  if (taxRateLabel) taxRateLabel.textContent = taxLabelForType(type);
+
+  const zone = taxZoneSelect ? taxZoneSelect.value : '';
+  const presetRate = zone ? rateFromPreset(zone, type) : null;
+  const fallbackRate = defaultTaxRates[type];
+
+  if (taxRateHint) {
+    if (presetRate != null) {
+      taxRateHint.textContent = `${zone}: ${presetRate}%`;
+    } else if (fallbackRate != null) {
+      taxRateHint.textContent = `Default: ${fallbackRate}%`;
+    } else {
+      taxRateHint.textContent = '';
+    }
+  }
+  if (autoFill && taxRateInput) {
+    const rate = presetRate != null ? presetRate : fallbackRate;
+    if (rate != null) taxRateInput.value = rate;
+  }
+}
 
 function syncOwnerFieldsVisibility() {
   if (!propertyTypeSelect || !residentialOwnersBlock || !singleOwnerFields) return;
@@ -205,8 +265,10 @@ function resetFormForNew() {
   if (propertyFormSubmit) propertyFormSubmit.textContent = 'Save property';
   if (coOwnersList) coOwnersList.innerHTML = '';
   if (propertyTypeSelect) propertyTypeSelect.value = 'Residential';
+  if (taxZoneSelect) taxZoneSelect.value = '';
   addCoOwnerRow();
   syncOwnerFieldsVisibility();
+  syncTaxRateUI(true);
   if (hideDetailsPublic) hideDetailsPublic.checked = false;
 }
 
@@ -223,6 +285,7 @@ function fillFormFromProperty(data) {
   setVal('purchase_date', data.purchase_date ? String(data.purchase_date).slice(0, 10) : '');
   setVal('assessed_value', data.assessed_value ?? '');
   setVal('tax_rate', data.tax_rate ?? '');
+  if (taxZoneSelect) taxZoneSelect.value = data.tax_zone || '';
   setVal('status', data.status || 'Owned');
   setVal('notes', data.notes ?? '');
   if (hideDetailsPublic) hideDetailsPublic.checked = !!data.hide_details_public;
@@ -237,6 +300,7 @@ function fillFormFromProperty(data) {
     setVal('owner_type', data.owner_type || 'Individual');
   }
   syncOwnerFieldsVisibility();
+  syncTaxRateUI(false);
 }
 
 function buildPayloadFromForm(geojson) {
@@ -249,6 +313,7 @@ function buildPayloadFromForm(geojson) {
     purchase_price: Number(fd.get('purchase_price') || 0),
     purchase_date: fd.get('purchase_date') || null,
     assessed_value: Number(fd.get('assessed_value') || 0),
+    tax_zone: taxZoneSelect ? taxZoneSelect.value || null : null,
     tax_rate: Number(fd.get('tax_rate') || 0),
     status: fd.get('status'),
     notes: fd.get('notes') || null,
@@ -289,7 +354,11 @@ if (user && (user.role === 'admin' || user.role === 'appraiser')) {
   });
 }
 
-propertyTypeSelect?.addEventListener('change', syncOwnerFieldsVisibility);
+propertyTypeSelect?.addEventListener('change', () => {
+  syncOwnerFieldsVisibility();
+  syncTaxRateUI(true);
+});
+taxZoneSelect?.addEventListener('change', () => syncTaxRateUI(true));
 document.getElementById('addCoOwner')?.addEventListener('click', () => addCoOwnerRow());
 
 function styleForProperty(p) {
@@ -373,7 +442,11 @@ function renderPanel(p) {
     <p class="detail"><strong>Purchase date</strong> ${p.purchase_date ? escapeHtml(String(p.purchase_date)) : '—'}</p>
     <p class="detail"><strong>Purchase price</strong> $${Number(p.purchase_price || 0).toLocaleString()}</p>
     <p class="detail"><strong>Assessed value</strong> $${Number(p.assessed_value || 0).toLocaleString()}</p>
-    <p class="detail"><strong>Annual tax</strong> $${Number(p.annual_tax || 0).toLocaleString()}</p>
+    <div class="tax-detail-block">
+      <p class="detail"><strong>${p.type === 'Commercial' ? 'Commercial Tax' : p.type === 'Residential' ? 'Residential Tax' : 'Property Tax'}</strong> <span class="tax-amount">$${Number(p.annual_tax || 0).toLocaleString()}<span class="tax-rate-badge">${Number(p.tax_rate || 0)}%</span></span></p>
+      ${p.tax_zone ? `<p class="detail"><strong>Tax Zone</strong> ${escapeHtml(p.tax_zone)}</p>` : ''}
+      ${Number(p.annual_tax) > 0 ? `<p class="detail tax-monthly"><strong>Monthly tax</strong> $${(Number(p.annual_tax) / 12).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>` : ''}
+    </div>
     <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
     <p class="detail"><strong>Updated</strong> ${escapeHtml(String(p.updated_at || ''))}</p>
     ${txBtn}
@@ -548,4 +621,5 @@ document.getElementById('closeModal')?.addEventListener('click', () => {
 });
 
 syncOwnerFieldsVisibility();
+syncTaxRateUI(false);
 loadProperties();

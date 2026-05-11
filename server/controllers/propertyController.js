@@ -7,7 +7,8 @@ const {
   updatePropertyGeojson,
   deleteProperty,
   getPropertyById,
-  calculateAnnualTax
+  calculateAnnualTax,
+  DEFAULT_TAX_RATES
 } = require('../models/propertyModel');
 
 const STAFF_ROLES = ['admin', 'appraiser', 'clerk'];
@@ -250,11 +251,25 @@ async function exportPdf(req, res) {
   }
   doc.text(`Purchase Price: $${Number(property.purchase_price || 0).toLocaleString()}`);
   doc.text(`Assessed Value: $${Number(property.assessed_value || 0).toLocaleString()}`);
-  doc.text(`Annual Tax: $${Number(property.annual_tax || 0).toLocaleString()}`);
+  if (property.tax_zone) {
+    doc.text(`Tax Zone: ${property.tax_zone}`);
+  }
+  const taxLabel = property.type === 'Residential' ? 'Residential Property Tax'
+    : property.type === 'Commercial' ? 'Commercial Property Tax'
+    : 'Annual Property Tax';
+  doc.text(`${taxLabel}: $${Number(property.annual_tax || 0).toLocaleString()} (${Number(property.tax_rate || 0)}%)`);
+  const monthlyTax = Number(property.annual_tax || 0) / 12;
+  if (monthlyTax > 0) {
+    doc.text(`Monthly Tax: $${monthlyTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  }
   doc.text(`Status: ${property.status}`);
   doc.moveDown();
   doc.text(`Last Updated: ${property.updated_at}`);
   doc.end();
+}
+
+function taxRates(_req, res) {
+  res.json(DEFAULT_TAX_RATES);
 }
 
 module.exports = {
@@ -267,5 +282,6 @@ module.exports = {
   transfer,
   transactions,
   exportCsv,
-  exportPdf
+  exportPdf,
+  taxRates
 };

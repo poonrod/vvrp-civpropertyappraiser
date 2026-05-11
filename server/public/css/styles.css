@@ -571,6 +571,190 @@ body.layout-map {
   font-weight: 400;
 }
 
+/* ——— Tax UI ——— */
+.tax-rate-group {
+  display: grid;
+  gap: 4px;
+}
+
+.tax-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-left: 2px;
+}
+
+.tax-detail-block {
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: var(--radius-sm);
+}
+
+.tax-detail-block .detail {
+  margin-bottom: 6px;
+}
+
+.tax-detail-block .detail:last-child {
+  margin-bottom: 0;
+}
+
+.tax-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tax-rate-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(212, 175, 55, 0.18);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 4px;
+  color: var(--gold-muted);
+}
+
+.tax-monthly {
+  font-size: 13px;
+}
+
+.card-tax {
+  position: relative;
+}
+
+.card-tax--total {
+  border-left: 3px solid var(--gold);
+}
+
+.card-tax--residential {
+  border-left: 3px solid #2f80ed;
+}
+
+.card-tax--commercial {
+  border-left: 3px solid #f2994a;
+}
+
+/* ——— Tax zone dropdown ——— */
+.tax-zone-group {
+  display: grid;
+  gap: 4px;
+}
+
+/* ——— Admin settings — Tax presets ——— */
+.preset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.preset-table th,
+.preset-table td {
+  padding: 10px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.preset-table th {
+  background: var(--bg-elevated);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.preset-table tr:last-child td {
+  border-bottom: none;
+}
+
+.preset-input {
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.preset-input--name {
+  min-width: 120px;
+}
+
+.preset-input:focus {
+  border-color: rgba(212, 175, 55, 0.55);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+.preset-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.preset-row-form {
+  display: contents;
+}
+
+.btn-danger {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fecaca;
+  background: transparent;
+}
+
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.preset-add-form {
+  display: block !important;
+}
+
+.preset-add-form input,
+.preset-add-form select {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.preset-add-form input:focus {
+  border-color: rgba(212, 175, 55, 0.55);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+.preset-add-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.settings-error {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--radius-sm);
+}
+
 /* ——— Admin / generic pages ——— */
 .page-admin {
   max-width: 960px;

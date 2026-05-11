@@ -16,6 +16,7 @@
       <nav class="site-nav">
         <a class="btn btn-ghost" href="/">Map</a>
         <a class="btn btn-ghost" href="/admin/users">Users</a>
+        <a class="btn btn-ghost" href="/admin/settings">Settings</a>
       </nav>
     </div>
   </header>
@@ -26,6 +27,15 @@
       <div><strong><%= stats.residentialCount %></strong><br /><span class="stat-label">Residential</span></div>
       <div><strong><%= stats.commercialCount %></strong><br /><span class="stat-label">Commercial</span></div>
       <div><strong><%= stats.totalBusinesses %></strong><br /><span class="stat-label">Businesses</span></div>
+    </section>
+
+    <section>
+      <h3>Tax Revenue</h3>
+      <div class="cards">
+        <div class="card-tax card-tax--total"><strong>$<%= Number(stats.totalTaxRevenue).toLocaleString() %></strong><br /><span class="stat-label">Total Annual Tax Revenue</span></div>
+        <div class="card-tax card-tax--residential"><strong>$<%= Number(stats.residentialTaxRevenue).toLocaleString() %></strong><br /><span class="stat-label">Residential Property Tax</span></div>
+        <div class="card-tax card-tax--commercial"><strong>$<%= Number(stats.commercialTaxRevenue).toLocaleString() %></strong><br /><span class="stat-label">Commercial Property Tax</span></div>
+      </div>
     </section>
 
     <section>
