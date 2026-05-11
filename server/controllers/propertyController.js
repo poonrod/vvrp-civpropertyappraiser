@@ -220,10 +220,12 @@ async function transfer(req, res) {
   const property = await getPropertyById(req.params.id);
   if (!property) return res.status(404).json({ error: 'Property missing' });
 
+  const seller = req.body.from_owner || property.owner_name;
+
   try {
     await createTransaction({
       property_id: property.id,
-      from_owner: property.owner_name,
+      from_owner: seller,
       to_owner: req.body.to_owner,
       sale_price: req.body.sale_price,
       transfer_date: req.body.transfer_date,
@@ -237,14 +239,24 @@ async function transfer(req, res) {
       Array.isArray(residential_owners) &&
       residential_owners.length > 0
     ) {
-      residential_owners = residential_owners.map((o, i) =>
-        i === 0 ? { ...o, name: req.body.to_owner } : o
-      );
+      const sellerLower = seller.toLowerCase();
+      const idx = residential_owners.findIndex((o) => o.name.toLowerCase() === sellerLower);
+      if (idx !== -1) {
+        residential_owners = residential_owners.map((o, i) =>
+          i === idx ? { ...o, name: req.body.to_owner } : o
+        );
+      } else {
+        residential_owners = residential_owners.map((o, i) =>
+          i === 0 ? { ...o, name: req.body.to_owner } : o
+        );
+      }
     }
+
+    const newPrimary = residential_owners.length > 0 ? residential_owners[0].name : req.body.to_owner;
 
     await updateProperty(property.id, {
       ...property,
-      owner_name: req.body.to_owner,
+      owner_name: newPrimary,
       owner_type: req.body.owner_type || property.owner_type,
       residential_owners
     });

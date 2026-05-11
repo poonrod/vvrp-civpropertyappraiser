@@ -654,9 +654,21 @@ function renderPanel(p) {
 
   panel.querySelector('#recordSaleBtn')?.addEventListener('click', () => {
     panel.querySelector('.panel-inline-form')?.remove();
+    const isResMulti = p.type === 'Residential' && Array.isArray(p.residential_owners) && p.residential_owners.length > 1;
+    const ownersList = isResMulti ? p.residential_owners : [];
+
+    const sellerHtml = isResMulti
+      ? `<span class="field-label">Selling owner</span>
+         <select id="saleSellerSelect">${ownersList.map((o) =>
+           `<option value="${escapeHtml(o.name)}">${escapeHtml(o.name)} (${escapeHtml(o.owner_type)})</option>`
+         ).join('')}</select>`
+      : '';
+
     panel.querySelector('.panel__inner')?.insertAdjacentHTML('beforeend', `
       <div class="panel-inline-form">
         <h4>Record Sale</h4>
+        ${sellerHtml}
+        <span class="field-label">Buyer</span>
         <input type="text" id="saleBuyerName" placeholder="Sold to (buyer name)" />
         <input type="number" id="salePrice" placeholder="Sale price" step="0.01" />
         <input type="text" id="saleNotes" placeholder="Notes (optional)" />
@@ -674,11 +686,15 @@ function renderPanel(p) {
       const price = Number(panel.querySelector('#salePrice')?.value || 0);
       const notes = panel.querySelector('#saleNotes')?.value?.trim() || null;
       if (!buyer) { alert('Enter the buyer name'); return; }
+      const seller = isResMulti
+        ? (panel.querySelector('#saleSellerSelect')?.value || p.owner_name)
+        : p.owner_name;
       const res = await fetch(`/api/properties/${encodeURIComponent(p.id)}/transfer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
         credentials: 'same-origin',
         body: JSON.stringify({
+          from_owner: seller,
           to_owner: buyer,
           sale_price: price,
           transfer_date: new Date().toISOString(),
