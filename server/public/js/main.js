@@ -440,6 +440,7 @@ function renderPanel(p) {
     <p class="detail"><strong>Type</strong> ${escapeHtml(String(p.type))}</p>
     <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
     ${editBtn}
+    <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
     </div>`;
   } else {
     panel.innerHTML = `
@@ -463,6 +464,7 @@ function renderPanel(p) {
     ${transferBtn}
     ${txBtn}
     ${editBtn}
+    <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
     </div>`;
   }
 
@@ -487,6 +489,7 @@ function renderPanel(p) {
   });
 
   panel.querySelector('#editPropertyBtn')?.addEventListener('click', () => openEditModal(p.id));
+  panel.querySelector('#closePanelBtn')?.addEventListener('click', () => panel.classList.add('hidden'));
 
   panel.querySelector('#recordSaleBtn')?.addEventListener('click', () => {
     panel.querySelector('.panel-inline-form')?.remove();

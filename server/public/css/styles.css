@@ -686,6 +686,18 @@ body.layout-map {
   border-color: rgba(93, 173, 226, 0.75);
 }
 
+.btn-close-panel {
+  background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
+  border-color: rgba(231, 76, 60, 0.55);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-close-panel:hover {
+  background: linear-gradient(180deg, #f06050 0%, #e74c3c 100%);
+  border-color: rgba(240, 96, 80, 0.75);
+}
+
 .card-tax {
   position: relative;
 }
