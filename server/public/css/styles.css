@@ -1158,6 +1158,50 @@ body.layout-map {
   color: var(--text-muted);
 }
 
+/* ── Delete property button & confirmation ────────── */
+.btn-delete-prop {
+  background: #c0392b;
+  color: #fff;
+  font-weight: 600;
+  width: 100%;
+}
+.btn-delete-prop:hover {
+  background: #a93226;
+}
+.panel-delete-confirm {
+  margin-top: 12px;
+  padding: 14px;
+  background: rgba(192, 57, 43, 0.12);
+  border: 1px solid #c0392b;
+  border-radius: 6px;
+}
+.delete-confirm-box h4 {
+  margin: 0 0 8px;
+  color: #e74c3c;
+  font-size: 15px;
+}
+.delete-confirm-box p {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.delete-warning {
+  color: #e74c3c !important;
+  font-weight: 500;
+}
+.btn-delete-confirm {
+  background: #c0392b;
+  color: #fff;
+  font-weight: 600;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-delete-confirm:hover {
+  background: #a93226;
+}
+
 /* ── General settings form ─────────────────────────── */
 .settings-general-form .preset-add-grid {
   grid-template-columns: 1fr 2fr;

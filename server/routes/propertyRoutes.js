@@ -20,7 +20,7 @@ router.post(
 );
 router.put('/:id', requireAuth, requireRole('admin', 'appraiser', 'clerk'), controller.update);
 router.patch('/:id/geojson', requireAuth, requireRole('admin', 'appraiser', 'clerk'), controller.updateGeo);
-router.delete('/:id', requireAuth, requireRole('admin', 'appraiser'), controller.remove);
+router.delete('/:id', requireAuth, requireRole('admin'), controller.remove);
 router.post('/:id/transfer', requireAuth, requireRole('admin', 'appraiser', 'clerk'), controller.transfer);
 
 module.exports = router;

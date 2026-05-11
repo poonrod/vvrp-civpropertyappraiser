@@ -464,6 +464,11 @@ function renderPanel(p) {
       ? `<button type="button" class="btn btn-panel btn-transfer" id="transferOwnerBtn">Transfer Ownership</button>`
       : '';
 
+  const deleteBtn =
+    user && user.role === 'admin'
+      ? `<button type="button" class="btn btn-panel btn-delete-prop" id="deletePropBtn">Delete Property</button>`
+      : '';
+
   if (hidden) {
     panel.innerHTML = `
     <div class="panel__inner">
@@ -474,6 +479,7 @@ function renderPanel(p) {
     <p class="detail"><strong>Type</strong> ${escapeHtml(String(p.type))}</p>
     <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
     ${editBtn}
+    ${deleteBtn}
     <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
     </div>`;
   } else {
@@ -499,6 +505,7 @@ function renderPanel(p) {
     ${transferBtn}
     ${txBtn}
     ${editBtn}
+    ${deleteBtn}
     <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
     </div>`;
   }
@@ -525,6 +532,42 @@ function renderPanel(p) {
 
   panel.querySelector('#editPropertyBtn')?.addEventListener('click', () => openEditModal(p.id));
   panel.querySelector('#closePanelBtn')?.addEventListener('click', () => panel.classList.add('hidden'));
+
+  panel.querySelector('#deletePropBtn')?.addEventListener('click', () => {
+    panel.querySelector('.panel-delete-confirm')?.remove();
+    panel.querySelector('.panel__inner')?.insertAdjacentHTML('beforeend', `
+      <div class="panel-delete-confirm">
+        <div class="delete-confirm-box">
+          <h4>Delete Property</h4>
+          <p>Are you sure you want to permanently delete <strong>${escapeHtml(p.name)}</strong>?</p>
+          <p class="delete-warning">This will also remove all transaction history. This action cannot be undone.</p>
+          <div class="panel-inline-actions">
+            <button type="button" class="btn btn-delete-confirm" id="confirmDeleteProp">Yes, Delete</button>
+            <button type="button" class="btn btn-compact" id="cancelDeleteProp">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `);
+    panel.querySelector('#cancelDeleteProp')?.addEventListener('click', () => {
+      panel.querySelector('.panel-delete-confirm')?.remove();
+    });
+    panel.querySelector('#confirmDeleteProp')?.addEventListener('click', async () => {
+      const res = await fetch(`/api/properties/${encodeURIComponent(p.id)}`, {
+        method: 'DELETE',
+        headers: { 'CSRF-Token': csrfToken },
+        credentials: 'same-origin'
+      });
+      if (res.ok) {
+        panel.classList.add('hidden');
+        featureGroup.eachLayer(layer => {
+          if (layer.propertyId === p.id) featureGroup.removeLayer(layer);
+        });
+      } else {
+        alert('Failed to delete property.');
+        panel.querySelector('.panel-delete-confirm')?.remove();
+      }
+    });
+  });
 
   panel.querySelector('#recordSaleBtn')?.addEventListener('click', () => {
     panel.querySelector('.panel-inline-form')?.remove();
