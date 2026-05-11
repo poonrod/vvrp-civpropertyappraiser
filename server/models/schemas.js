@@ -49,7 +49,7 @@ const propertySchema = new Schema(
     annual_tax: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ['Owned', 'For Sale', 'Foreclosed', 'Government Seized'],
+      enum: ['Owned', 'For Sale', 'Foreclosed', 'Government Seized', 'Requires Survey'],
       default: 'Owned'
     },
     notes: { type: String, default: null },
