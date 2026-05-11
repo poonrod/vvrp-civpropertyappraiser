@@ -10,6 +10,7 @@ const {
   updateTaxPreset,
   deleteTaxPreset
 } = require('../models/taxPresetModel');
+const { getSetting, setSetting, getSettings } = require('../models/appSettingModel');
 
 const router = express.Router();
 
@@ -76,6 +77,7 @@ router.get('/export/json', requireAuth, requireRole('admin'), async (req, res) =
     purchase_price: r.purchase_price,
     purchase_date: r.purchase_date,
     assessed_value: r.assessed_value,
+    square_footage: r.square_footage || 0,
     tax_zone: r.tax_zone || null,
     tax_rate: r.tax_rate,
     annual_tax: r.annual_tax,
@@ -110,7 +112,23 @@ router.post('/import/geojson', requireAuth, requireRole('admin'), express.json()
 
 router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
   const presets = await listTaxPresets();
-  res.render('admin/settings', { presets, error: req.query.error || null });
+  const settings = await getSettings(['price_per_sqft', 'discord_webhook_url']);
+  res.render('admin/settings', {
+    presets,
+    error: req.query.error || null,
+    pricePerSqft: settings.price_per_sqft || 0,
+    discordWebhookUrl: settings.discord_webhook_url || ''
+  });
+});
+
+router.post('/settings/general', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    await setSetting('price_per_sqft', Number(req.body.price_per_sqft) || 0);
+    await setSetting('discord_webhook_url', String(req.body.discord_webhook_url || '').trim());
+  } catch (e) {
+    console.error(e);
+  }
+  res.redirect('/admin/settings');
 });
 
 router.post('/settings/tax-presets', requireAuth, requireRole('admin'), async (req, res) => {

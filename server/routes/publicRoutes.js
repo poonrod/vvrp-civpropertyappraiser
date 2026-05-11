@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { DEFAULT_TAX_RATES } = require('../models/propertyModel');
 const { listTaxPresets } = require('../models/taxPresetModel');
+const { getSetting } = require('../models/appSettingModel');
 
 const router = express.Router();
 
@@ -35,12 +36,18 @@ router.get('/', async (req, res) => {
     console.error('[publicRoutes] Bundled map config missing or invalid:', e.message);
   }
   let taxPresets = [];
+  let pricePerSqft = 0;
   try {
     taxPresets = await listTaxPresets();
   } catch (e) {
     console.error('[publicRoutes] Could not load tax presets:', e.message);
   }
-  res.render('index', { config, taxRates: DEFAULT_TAX_RATES, taxPresets });
+  try {
+    pricePerSqft = Number(await getSetting('price_per_sqft')) || 0;
+  } catch (e) {
+    console.error('[publicRoutes] Could not load price_per_sqft:', e.message);
+  }
+  res.render('index', { config, taxRates: DEFAULT_TAX_RATES, taxPresets, pricePerSqft });
 });
 
 module.exports = router;

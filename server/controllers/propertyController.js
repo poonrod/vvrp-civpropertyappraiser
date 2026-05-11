@@ -294,6 +294,9 @@ async function exportPdf(req, res) {
   }
   doc.text(`Purchase Price: $${Number(property.purchase_price || 0).toLocaleString()}`);
   doc.text(`Assessed Value: $${Number(property.assessed_value || 0).toLocaleString()}`);
+  if (Number(property.square_footage || 0) > 0) {
+    doc.text(`Square Footage: ${Number(property.square_footage).toLocaleString()} sqft`);
+  }
   if (property.tax_zone) {
     doc.text(`Tax Zone: ${property.tax_zone}`);
   }

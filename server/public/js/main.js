@@ -5,6 +5,7 @@ const searchInput = document.getElementById('searchInput');
 const user = window.SAPA_USER;
 const defaultTaxRates = window.SAPA_TAX_RATES || {};
 const taxPresets = window.SAPA_TAX_PRESETS || [];
+const pricePerSqft = Number(window.SAPA_PRICE_PER_SQFT) || 0;
 
 const STAFF_ROLES = ['admin', 'appraiser', 'clerk'];
 function isStaff() {
@@ -152,6 +153,13 @@ const taxRateInput = document.getElementById('taxRateInput');
 const taxRateLabel = document.getElementById('taxRateLabel');
 const taxRateHint = document.getElementById('taxRateHint');
 const taxZoneSelect = document.getElementById('taxZoneSelect');
+const sqftInput = document.getElementById('sqftInput');
+const sqftHint = document.getElementById('sqftHint');
+const assessedValueInput = document.getElementById('assessedValueInput');
+const workOrderSelect = document.getElementById('workOrderSelect');
+const workOrderGroup = document.getElementById('workOrderGroup');
+let pendingWorkOrders = [];
+let selectedWorkOrderId = null;
 
 const taxPresetMap = new Map();
 if (taxZoneSelect) {
@@ -204,6 +212,23 @@ function syncTaxRateUI(autoFill) {
   if (autoFill && taxRateInput) {
     const rate = presetRate != null ? presetRate : fallbackRate;
     if (rate != null) taxRateInput.value = rate;
+  }
+}
+
+function syncSqftUI() {
+  if (!sqftHint) return;
+  if (pricePerSqft > 0) {
+    sqftHint.textContent = `$${pricePerSqft}/sqft`;
+  } else {
+    sqftHint.textContent = '';
+  }
+}
+
+function autoCalcAssessedValue() {
+  if (!sqftInput || !assessedValueInput || pricePerSqft <= 0) return;
+  const sqft = Number(sqftInput.value) || 0;
+  if (sqft > 0) {
+    assessedValueInput.value = (sqft * pricePerSqft).toFixed(2);
   }
 }
 
@@ -269,7 +294,11 @@ function resetFormForNew() {
   addCoOwnerRow();
   syncOwnerFieldsVisibility();
   syncTaxRateUI(true);
+  syncSqftUI();
   if (hideDetailsPublic) hideDetailsPublic.checked = false;
+  if (workOrderSelect) workOrderSelect.value = '';
+  selectedWorkOrderId = null;
+  if (workOrderGroup) workOrderGroup.classList.toggle('hidden', !!editPropertyId?.value);
 }
 
 function fillFormFromProperty(data) {
@@ -284,6 +313,7 @@ function fillFormFromProperty(data) {
   setVal('purchase_price', data.purchase_price ?? '');
   setVal('purchase_date', data.purchase_date ? String(data.purchase_date).slice(0, 10) : '');
   setVal('assessed_value', data.assessed_value ?? '');
+  setVal('square_footage', data.square_footage ?? '');
   setVal('tax_rate', data.tax_rate ?? '');
   if (taxZoneSelect) taxZoneSelect.value = data.tax_zone || '';
   setVal('status', data.status || 'Owned');
@@ -301,6 +331,8 @@ function fillFormFromProperty(data) {
   }
   syncOwnerFieldsVisibility();
   syncTaxRateUI(false);
+  syncSqftUI();
+  if (workOrderGroup) workOrderGroup.classList.add('hidden');
 }
 
 function buildPayloadFromForm(geojson) {
@@ -313,6 +345,7 @@ function buildPayloadFromForm(geojson) {
     purchase_price: Number(fd.get('purchase_price') || 0),
     purchase_date: fd.get('purchase_date') || null,
     assessed_value: Number(fd.get('assessed_value') || 0),
+    square_footage: Number(fd.get('square_footage') || 0),
     tax_zone: taxZoneSelect ? taxZoneSelect.value || null : null,
     tax_rate: Number(fd.get('tax_rate') || 0),
     status: fd.get('status'),
@@ -360,6 +393,7 @@ propertyTypeSelect?.addEventListener('change', () => {
 });
 taxZoneSelect?.addEventListener('change', () => syncTaxRateUI(true));
 document.getElementById('addCoOwner')?.addEventListener('click', () => addCoOwnerRow());
+sqftInput?.addEventListener('input', () => autoCalcAssessedValue());
 
 function styleForProperty(p) {
   const fillMap = { Residential: '#2f80ed', Commercial: '#f2994a', Government: '#27ae60', 'Vacant Land': '#7b8794' };
@@ -453,6 +487,7 @@ function renderPanel(p) {
     <p class="detail"><strong>Purchase date</strong> ${p.purchase_date ? escapeHtml(String(p.purchase_date)) : '—'}</p>
     <p class="detail"><strong>Purchase price</strong> $${Number(p.purchase_price || 0).toLocaleString()}</p>
     <p class="detail"><strong>Assessed value</strong> $${Number(p.assessed_value || 0).toLocaleString()}</p>
+    ${Number(p.square_footage || 0) > 0 ? `<p class="detail"><strong>Square footage</strong> ${Number(p.square_footage).toLocaleString()} sqft</p>` : ''}
     <div class="tax-detail-block">
       <p class="detail"><strong>${p.type === 'Commercial' ? 'Commercial Tax' : p.type === 'Residential' ? 'Residential Tax' : 'Property Tax'}</strong> <span class="tax-amount">$${Number(p.annual_tax || 0).toLocaleString()}<span class="tax-rate-badge">${Number(p.tax_rate || 0)}%</span></span></p>
       ${p.tax_zone ? `<p class="detail"><strong>Tax Zone</strong> ${escapeHtml(p.tax_zone)}</p>` : ''}
@@ -585,6 +620,13 @@ function renderPanel(p) {
 
 let loadSeq = 0;
 let postalDebounce;
+let postalMarkerLayer = null;
+let postalRectLayer = null;
+
+function clearPostalMarkers() {
+  if (postalMarkerLayer) { map.removeLayer(postalMarkerLayer); postalMarkerLayer = null; }
+  if (postalRectLayer) { map.removeLayer(postalRectLayer); postalRectLayer = null; }
+}
 
 async function loadProperties(search = '') {
   const seq = ++loadSeq;
@@ -618,53 +660,38 @@ async function loadProperties(search = '') {
 
 async function maybeFlyToPostal(searchRaw) {
   const key = postalKeyFromQuery(searchRaw);
-  if (!key) return;
+  if (!key) { clearPostalMarkers(); return; }
   await loadPostalIndex();
   const entry = postalByCode.get(key);
-  if (!entry) return;
+  if (!entry) { clearPostalMarkers(); return; }
   const cal = postalPayload.calibration || {};
   const gn = postalPayload.marker_nudge || { lat: 0, lng: 0 };
   const ll = postalEntryToLatLng(entry, cal, gn);
-  if (!ll) return;
+  if (!ll) { clearPostalMarkers(); return; }
 
-  // Neighborhood frame (~6.5% of map extent each side, minimum px-ish span) — stay zoomed out vs street-level.
-  const latSpan = mapExtents.latMax - mapExtents.latMin;
-  const lngSpan = mapExtents.lngMax - mapExtents.lngMin;
-  const frac = 0.065;
-  const padLat = Math.max(latSpan * frac, 420);
-  const padLng = Math.max(lngSpan * frac, 560);
+  const zoom = Number(entry.zoom) || 2;
+  map.setView(ll, zoom, { animate: true });
 
-  const r0 = ll.lat - padLat;
-  const r1 = ll.lat + padLat;
-  const c0 = ll.lng - padLng;
-  const c1 = ll.lng + padLng;
-  const lowLat = Math.min(r0, r1);
-  const highLat = Math.max(r0, r1);
-  const lowLng = Math.min(c0, c1);
-  const highLng = Math.max(c0, c1);
+  clearPostalMarkers();
 
-  const sw = L.latLng(
-    Math.max(mapExtents.latMin, lowLat),
-    Math.max(mapExtents.lngMin, lowLng)
-  );
-  const ne = L.latLng(
-    Math.min(mapExtents.latMax, highLat),
-    Math.min(mapExtents.lngMax, highLng)
-  );
-  const area = L.latLngBounds(sw, ne);
-
-  const cfgMin = Number(window.SAPA_CONFIG.min_zoom);
-  const cfgMax = Number(window.SAPA_CONFIG.max_zoom);
-  const minZ = Number.isFinite(cfgMin) ? cfgMin : -2;
-  const maxZ = Number.isFinite(cfgMax) ? cfgMax : 4;
-  /** Never zoom in past ~district level for postals; prefer -1 when map allows (wide neighborhood). */
-  const postalMaxZoom = Math.min(maxZ, Math.max(minZ, -1));
-
-  map.fitBounds(area, {
-    padding: [52, 52],
-    maxZoom: postalMaxZoom,
-    animate: true
+  const pulseIcon = L.divIcon({
+    className: 'postal-pulse-marker',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
   });
+  postalMarkerLayer = L.marker(ll, { icon: pulseIcon, interactive: false }).addTo(map);
+
+  const spread = 120;
+  const sw = L.latLng(ll.lat - spread, ll.lng - spread);
+  const ne = L.latLng(ll.lat + spread, ll.lng + spread);
+  postalRectLayer = L.rectangle([sw, ne], {
+    color: '#2f80ed',
+    weight: 2,
+    fillColor: '#2f80ed',
+    fillOpacity: 0.10,
+    dashArray: '6 4',
+    interactive: false
+  }).addTo(map);
 }
 
 searchInput?.addEventListener('input', (e) => {
@@ -716,6 +743,17 @@ propertyForm?.addEventListener('submit', async (e) => {
     alert(msg);
     return;
   }
+
+  if (!editingId && selectedWorkOrderId) {
+    fetch(`/api/property-requests/${encodeURIComponent(selectedWorkOrderId)}/complete`, {
+      method: 'PATCH',
+      headers: { 'CSRF-Token': csrfToken },
+      credentials: 'same-origin'
+    }).catch(() => {});
+    selectedWorkOrderId = null;
+    void loadWorkOrders();
+  }
+
   propertyModal?.classList.add('hidden');
   resetFormForNew();
   loadProperties(searchInput?.value || '');
@@ -728,4 +766,158 @@ document.getElementById('closeModal')?.addEventListener('click', () => {
 
 syncOwnerFieldsVisibility();
 syncTaxRateUI(false);
+syncSqftUI();
 loadProperties();
+
+async function loadWorkOrders() {
+  if (!isStaff() || !workOrderSelect) return;
+  try {
+    const r = await fetch('/api/property-requests?status=pending', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    pendingWorkOrders = await r.json();
+  } catch { pendingWorkOrders = []; }
+  workOrderSelect.innerHTML = '<option value="">— None —</option>';
+  pendingWorkOrders.forEach((wo) => {
+    const opt = document.createElement('option');
+    opt.value = wo._id || wo.id;
+    const label = `${wo.owner_name || 'Unknown'} - ${wo.postal || wo.address || 'N/A'}`;
+    opt.textContent = label;
+    workOrderSelect.appendChild(opt);
+  });
+}
+
+workOrderSelect?.addEventListener('change', () => {
+  const id = workOrderSelect.value;
+  if (!id) { selectedWorkOrderId = null; return; }
+  const wo = pendingWorkOrders.find((w) => (w._id || w.id) === id);
+  if (!wo) return;
+  selectedWorkOrderId = id;
+
+  if (propertyTypeSelect) propertyTypeSelect.value = wo.type || 'Residential';
+  syncOwnerFieldsVisibility();
+
+  const setVal = (name, val) => {
+    const el = propertyForm?.querySelector(`[name="${name}"]`);
+    if (el) el.value = val ?? '';
+  };
+  setVal('address', wo.address || '');
+  setVal('purchase_price', wo.purchase_price || '');
+  setVal('square_footage', wo.square_footage || '');
+  setVal('notes', wo.notes || '');
+
+  if (wo.type === 'Residential' && Array.isArray(wo.residential_owners) && wo.residential_owners.length > 0) {
+    if (coOwnersList) coOwnersList.innerHTML = '';
+    wo.residential_owners.forEach((o) => addCoOwnerRow(o.name || '', o.owner_type || 'Individual'));
+  } else {
+    setVal('owner_name', wo.owner_name || '');
+    setVal('owner_type', wo.owner_type || 'Individual');
+  }
+  autoCalcAssessedValue();
+  syncTaxRateUI(true);
+});
+
+if (isStaff()) void loadWorkOrders();
+
+/* ── Public Property Request Form ─────────────────── */
+const requestModal = document.getElementById('requestModal');
+const requestForm = document.getElementById('requestForm');
+const reqTypeSelect = document.getElementById('reqTypeSelect');
+const reqResidentialFields = document.getElementById('reqResidentialFields');
+const reqCommercialFields = document.getElementById('reqCommercialFields');
+const reqCoOwnersList = document.getElementById('reqCoOwnersList');
+
+function addReqCoOwnerRow(name = '', ownerType = 'Individual') {
+  if (!reqCoOwnersList) return;
+  const row = document.createElement('div');
+  row.className = 'co-owner-row';
+  const nameIn = document.createElement('input');
+  nameIn.type = 'text'; nameIn.placeholder = 'Owner name'; nameIn.value = name; nameIn.className = 'co-owner-name';
+  const sel = document.createElement('select');
+  sel.className = 'co-owner-type';
+  ['Individual', 'Business'].forEach((t) => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t; if (t === ownerType) o.selected = true;
+    sel.appendChild(o);
+  });
+  const rm = document.createElement('button');
+  rm.type = 'button'; rm.className = 'btn-remove-co'; rm.textContent = '×';
+  rm.addEventListener('click', () => { if (reqCoOwnersList.children.length > 1) row.remove(); });
+  row.append(nameIn, sel, rm);
+  reqCoOwnersList.appendChild(row);
+}
+
+function syncReqTypeFields() {
+  if (!reqTypeSelect) return;
+  const isRes = reqTypeSelect.value === 'Residential';
+  reqResidentialFields?.classList.toggle('hidden', !isRes);
+  reqCommercialFields?.classList.toggle('hidden', isRes);
+  if (isRes && reqCoOwnersList && reqCoOwnersList.children.length === 0) addReqCoOwnerRow();
+}
+
+reqTypeSelect?.addEventListener('change', syncReqTypeFields);
+document.getElementById('reqAddCoOwner')?.addEventListener('click', () => addReqCoOwnerRow());
+
+document.getElementById('openRequestForm')?.addEventListener('click', () => {
+  requestForm?.reset();
+  if (reqCoOwnersList) reqCoOwnersList.innerHTML = '';
+  addReqCoOwnerRow();
+  syncReqTypeFields();
+  requestModal?.classList.remove('hidden');
+});
+
+document.getElementById('closeRequestModal')?.addEventListener('click', () => {
+  requestModal?.classList.add('hidden');
+});
+
+requestForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const type = reqTypeSelect?.value || 'Residential';
+  const payload = {
+    type,
+    discord_name: document.getElementById('reqDiscordName')?.value?.trim() || '',
+    address: document.getElementById('reqAddress')?.value?.trim() || '',
+    postal: document.getElementById('reqPostal')?.value?.trim() || '',
+    purchase_price: Number(document.getElementById('reqPurchasePrice')?.value || 0),
+    square_footage: Number(document.getElementById('reqSqft')?.value || 0),
+    notes: document.getElementById('reqNotes')?.value?.trim() || null
+  };
+
+  if (type === 'Residential') {
+    const owners = [];
+    reqCoOwnersList?.querySelectorAll('.co-owner-row').forEach((row) => {
+      const n = row.querySelector('.co-owner-name')?.value?.trim();
+      const ot = row.querySelector('.co-owner-type')?.value || 'Individual';
+      if (n) owners.push({ name: n, owner_type: ot });
+    });
+    if (!owners.length) { alert('Add at least one owner'); return; }
+    payload.residential_owners = owners;
+    payload.owner_name = owners[0].name;
+    payload.owner_type = owners[0].owner_type;
+  } else {
+    payload.business_name = document.getElementById('reqBusinessName')?.value?.trim() || '';
+    payload.owner_name = document.getElementById('reqOwnerName')?.value?.trim() || '';
+    payload.owner_type = document.getElementById('reqOwnerType')?.value || 'Individual';
+    if (!payload.owner_name) { alert('Enter the owner name'); return; }
+  }
+
+  try {
+    const r = await fetch('/api/property-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+    if (r.ok) {
+      requestModal?.classList.add('hidden');
+      alert('Your property appraisal request has been submitted!');
+      if (isStaff()) void loadWorkOrders();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      alert(j.error || 'Failed to submit request');
+    }
+  } catch {
+    alert('Network error — please try again');
+  }
+});
+
+syncReqTypeFields();

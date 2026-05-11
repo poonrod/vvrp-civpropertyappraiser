@@ -42,6 +42,7 @@ const propertySchema = new Schema(
     purchase_price: { type: Number, default: 0 },
     purchase_date: { type: Date, default: null },
     assessed_value: { type: Number, default: 0 },
+    square_footage: { type: Number, default: 0 },
     tax_zone: { type: String, default: null },
     tax_rate: { type: Number, default: 0 },
     annual_tax: { type: Number, default: 0 },
@@ -102,6 +103,48 @@ const auditLogSchema = new Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: false } }
 );
 
+const appSettingSchema = new Schema(
+  {
+    key: { type: String, required: true, unique: true },
+    value: { type: Schema.Types.Mixed }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+const propertyRequestSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Residential', 'Commercial'],
+      required: true
+    },
+    owner_name: { type: String, required: true },
+    owner_type: { type: String, enum: ['Individual', 'Business'], default: 'Individual' },
+    business_name: { type: String, default: null },
+    address: { type: String, default: '' },
+    postal: { type: String, default: '' },
+    purchase_price: { type: Number, default: 0 },
+    square_footage: { type: Number, default: 0 },
+    residential_owners: {
+      type: [
+        {
+          name: { type: String, required: true },
+          owner_type: { type: String, enum: ['Individual', 'Business'], default: 'Individual' }
+        }
+      ],
+      default: []
+    },
+    notes: { type: String, default: null },
+    discord_name: { type: String, default: '' },
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'cancelled'],
+      default: 'pending'
+    }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
 const loginLogSchema = new Schema(
   {
     user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -119,5 +162,7 @@ module.exports = {
     mongoose.models.PropertyTransaction || mongoose.model('PropertyTransaction', propertyTransactionSchema),
   TaxPreset: mongoose.models.TaxPreset || mongoose.model('TaxPreset', taxPresetSchema),
   AuditLog: mongoose.models.AuditLog || mongoose.model('AuditLog', auditLogSchema),
-  LoginLog: mongoose.models.LoginLog || mongoose.model('LoginLog', loginLogSchema)
+  LoginLog: mongoose.models.LoginLog || mongoose.model('LoginLog', loginLogSchema),
+  AppSetting: mongoose.models.AppSetting || mongoose.model('AppSetting', appSettingSchema),
+  PropertyRequest: mongoose.models.PropertyRequest || mongoose.model('PropertyRequest', propertyRequestSchema)
 };

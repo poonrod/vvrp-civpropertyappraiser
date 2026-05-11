@@ -32,6 +32,7 @@
   <div class="map-toolbar">
     <input class="input-search" id="searchInput" type="search" autocomplete="off" placeholder="Search owner, parcel, address, postal code (e.g. 5000), business…" aria-label="Search properties" />
     <button type="button" class="btn" id="legendToggle">Legend</button>
+    <button type="button" class="btn btn-accent" id="openRequestForm">Request Appraisal</button>
   </div>
 
   <main class="map-stage">
@@ -55,6 +56,12 @@
         <input type="hidden" id="geojsonInput" />
         <input type="hidden" id="editPropertyId" value="" />
         <h3 id="propertyModalTitle">New property</h3>
+        <div class="work-order-group" id="workOrderGroup">
+          <span class="field-label">Work Order</span>
+          <select id="workOrderSelect" aria-label="Work order">
+            <option value="">— None —</option>
+          </select>
+        </div>
         <p id="parcelDisplayRow" class="parcel-display-row hidden"><strong>Parcel</strong> <span id="parcelDisplay"></span></p>
         <input name="name" placeholder="Property name" required />
         <select name="type" id="propertyTypeSelect" aria-label="Property type"><option>Residential</option><option>Commercial</option><option>Government</option><option>Vacant Land</option></select>
@@ -70,7 +77,11 @@
         </div>
         <input name="purchase_price" placeholder="Purchase price" type="number" step="0.01" />
         <input name="purchase_date" type="date" />
-        <input name="assessed_value" placeholder="Assessed value" type="number" step="0.01" />
+        <input name="assessed_value" placeholder="Assessed value" type="number" step="0.01" id="assessedValueInput" />
+        <div class="sqft-group">
+          <input name="square_footage" placeholder="Square footage" type="number" step="1" id="sqftInput" />
+          <span class="tax-hint" id="sqftHint"></span>
+        </div>
         <div class="tax-zone-group">
           <span class="field-label">Tax Zone</span>
           <select id="taxZoneSelect" aria-label="Tax zone">
@@ -90,9 +101,40 @@
       </form>
     </div>
     <% } %>
+
+    <div id="requestModal" class="modal hidden">
+      <form id="requestForm">
+        <h3>Request Property Appraisal</h3>
+        <input name="discord_name" placeholder="Your name (Discord / RP)" required id="reqDiscordName" />
+        <select id="reqTypeSelect" aria-label="Property type">
+          <option value="Residential">Residential</option>
+          <option value="Commercial">Commercial</option>
+        </select>
+
+        <div id="reqResidentialFields">
+          <span class="field-label">Owners</span>
+          <div id="reqCoOwnersList" class="co-owners-list"></div>
+          <button type="button" class="btn btn-ghost btn-compact" id="reqAddCoOwner">Add owner</button>
+        </div>
+
+        <div id="reqCommercialFields" class="hidden">
+          <input name="business_name" placeholder="Business name" id="reqBusinessName" />
+          <select name="owner_type" id="reqOwnerType" aria-label="Owner type"><option>Individual</option><option>Business</option></select>
+          <input name="owner_name" placeholder="Owner name" id="reqOwnerName" />
+        </div>
+
+        <input name="address" placeholder="Address" id="reqAddress" />
+        <input name="postal" placeholder="Postal code" id="reqPostal" />
+        <input name="purchase_price" placeholder="Purchase value ($)" type="number" step="0.01" id="reqPurchasePrice" />
+        <input name="square_footage" placeholder="Square footage" type="number" step="1" id="reqSqft" />
+        <textarea name="notes" placeholder="Additional notes" rows="3" id="reqNotes"></textarea>
+        <button type="submit" class="btn btn-primary">Submit Request</button>
+        <button type="button" class="btn" id="closeRequestModal">Cancel</button>
+      </form>
+    </div>
   </main>
 
-  <script>window.SAPA_CONFIG = <%- JSON.stringify(config || {}) %>; window.SAPA_USER = <%- JSON.stringify(user || null) %>; window.SAPA_TAX_RATES = <%- JSON.stringify(taxRates || {}) %>; window.SAPA_TAX_PRESETS = <%- JSON.stringify(taxPresets || []) %>;</script>
+  <script>window.SAPA_CONFIG = <%- JSON.stringify(config || {}) %>; window.SAPA_USER = <%- JSON.stringify(user || null) %>; window.SAPA_TAX_RATES = <%- JSON.stringify(taxRates || {}) %>; window.SAPA_TAX_PRESETS = <%- JSON.stringify(taxPresets || []) %>; window.SAPA_PRICE_PER_SQFT = <%= typeof pricePerSqft !== 'undefined' && pricePerSqft ? pricePerSqft : 0 %>;</script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="/public/js/main.js"></script>

@@ -16,6 +16,7 @@ const propertyRoutes = require('./routes/propertyRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const businessRoutes = require('./routes/businessRoutes');
 const postalRoutes = require('./routes/postalRoutes');
+const propertyRequestRoutes = require('./routes/propertyRequestRoutes');
 const { getMongoClientOptions } = require('./config/db');
 
 const app = express();
@@ -121,6 +122,7 @@ app.use('/', publicRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/postals', postalRoutes);
 app.use('/api/businesses', businessRoutes);
+app.use('/api/property-requests', propertyRequestRoutes);
 app.use('/admin', adminRoutes);
 
 app.use((err, req, res, next) => {
