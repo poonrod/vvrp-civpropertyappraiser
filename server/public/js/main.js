@@ -420,6 +420,16 @@ function renderPanel(p) {
     ? ''
     : `<button type="button" class="btn btn-primary btn-panel" id="txBtn">Transaction history</button>`;
 
+  const saleBtn =
+    isStaff() && !hidden
+      ? `<button type="button" class="btn btn-panel btn-sale" id="recordSaleBtn">Record Sale</button>`
+      : '';
+
+  const transferBtn =
+    isStaff() && !hidden && p.type === 'Commercial'
+      ? `<button type="button" class="btn btn-panel btn-transfer" id="transferOwnerBtn">Transfer Ownership</button>`
+      : '';
+
   if (hidden) {
     panel.innerHTML = `
     <div class="panel__inner">
@@ -445,10 +455,12 @@ function renderPanel(p) {
     <div class="tax-detail-block">
       <p class="detail"><strong>${p.type === 'Commercial' ? 'Commercial Tax' : p.type === 'Residential' ? 'Residential Tax' : 'Property Tax'}</strong> <span class="tax-amount">$${Number(p.annual_tax || 0).toLocaleString()}<span class="tax-rate-badge">${Number(p.tax_rate || 0)}%</span></span></p>
       ${p.tax_zone ? `<p class="detail"><strong>Tax Zone</strong> ${escapeHtml(p.tax_zone)}</p>` : ''}
-      ${Number(p.annual_tax) > 0 ? `<p class="detail tax-monthly"><strong>Monthly tax</strong> $${(Number(p.annual_tax) / 12).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>` : ''}
+      ${Number(p.annual_tax) > 0 ? `<p class="detail tax-monthly"><strong>Yearly Tax</strong> $${Number(p.annual_tax).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>` : ''}
     </div>
     <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
     <p class="detail"><strong>Updated</strong> ${escapeHtml(String(p.updated_at || ''))}</p>
+    ${saleBtn}
+    ${transferBtn}
     ${txBtn}
     ${editBtn}
     </div>`;
@@ -475,6 +487,97 @@ function renderPanel(p) {
   });
 
   panel.querySelector('#editPropertyBtn')?.addEventListener('click', () => openEditModal(p.id));
+
+  panel.querySelector('#recordSaleBtn')?.addEventListener('click', () => {
+    panel.querySelector('.panel-inline-form')?.remove();
+    panel.querySelector('.panel__inner')?.insertAdjacentHTML('beforeend', `
+      <div class="panel-inline-form">
+        <h4>Record Sale</h4>
+        <input type="text" id="saleBuyerName" placeholder="Sold to (buyer name)" />
+        <input type="number" id="salePrice" placeholder="Sale price" step="0.01" />
+        <input type="text" id="saleNotes" placeholder="Notes (optional)" />
+        <div class="panel-inline-actions">
+          <button type="button" class="btn btn-primary btn-compact" id="confirmSale">Confirm Sale</button>
+          <button type="button" class="btn btn-compact" id="cancelSale">Cancel</button>
+        </div>
+      </div>
+    `);
+    panel.querySelector('#cancelSale')?.addEventListener('click', () => {
+      panel.querySelector('.panel-inline-form')?.remove();
+    });
+    panel.querySelector('#confirmSale')?.addEventListener('click', async () => {
+      const buyer = panel.querySelector('#saleBuyerName')?.value?.trim();
+      const price = Number(panel.querySelector('#salePrice')?.value || 0);
+      const notes = panel.querySelector('#saleNotes')?.value?.trim() || null;
+      if (!buyer) { alert('Enter the buyer name'); return; }
+      const res = await fetch(`/api/properties/${encodeURIComponent(p.id)}/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          to_owner: buyer,
+          sale_price: price,
+          transfer_date: new Date().toISOString(),
+          notes: notes ? `Sale: ${notes}` : 'Property sale'
+        })
+      });
+      if (res.ok) {
+        panel.querySelector('.panel-inline-form')?.remove();
+        loadProperties(searchInput?.value || '');
+        const fresh = await fetch(`/api/properties/${encodeURIComponent(p.id)}`, { credentials: 'same-origin' });
+        const updated = await fresh.json();
+        if (updated && !updated.error) renderPanel(updated);
+      } else {
+        alert('Failed to record sale');
+      }
+    });
+  });
+
+  panel.querySelector('#transferOwnerBtn')?.addEventListener('click', () => {
+    panel.querySelector('.panel-inline-form')?.remove();
+    panel.querySelector('.panel__inner')?.insertAdjacentHTML('beforeend', `
+      <div class="panel-inline-form">
+        <h4>Transfer Ownership</h4>
+        <input type="text" id="transferNewOwner" placeholder="New owner name" />
+        <select id="transferOwnerType"><option value="Individual">Individual</option><option value="Business">Business</option></select>
+        <input type="text" id="transferNotes" placeholder="Notes (optional)" />
+        <div class="panel-inline-actions">
+          <button type="button" class="btn btn-primary btn-compact" id="confirmTransfer">Confirm Transfer</button>
+          <button type="button" class="btn btn-compact" id="cancelTransfer">Cancel</button>
+        </div>
+      </div>
+    `);
+    panel.querySelector('#cancelTransfer')?.addEventListener('click', () => {
+      panel.querySelector('.panel-inline-form')?.remove();
+    });
+    panel.querySelector('#confirmTransfer')?.addEventListener('click', async () => {
+      const newOwner = panel.querySelector('#transferNewOwner')?.value?.trim();
+      const ownerType = panel.querySelector('#transferOwnerType')?.value || 'Individual';
+      const notes = panel.querySelector('#transferNotes')?.value?.trim() || null;
+      if (!newOwner) { alert('Enter the new owner name'); return; }
+      const res = await fetch(`/api/properties/${encodeURIComponent(p.id)}/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          to_owner: newOwner,
+          owner_type: ownerType,
+          sale_price: 0,
+          transfer_date: new Date().toISOString(),
+          notes: notes ? `Transfer: ${notes}` : 'Ownership transfer'
+        })
+      });
+      if (res.ok) {
+        panel.querySelector('.panel-inline-form')?.remove();
+        loadProperties(searchInput?.value || '');
+        const fresh = await fetch(`/api/properties/${encodeURIComponent(p.id)}`, { credentials: 'same-origin' });
+        const updated = await fresh.json();
+        if (updated && !updated.error) renderPanel(updated);
+      } else {
+        alert('Failed to transfer ownership');
+      }
+    });
+  });
 }
 
 let loadSeq = 0;

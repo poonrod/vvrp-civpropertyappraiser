@@ -620,6 +620,72 @@ body.layout-map {
   font-size: 13px;
 }
 
+/* ——— Panel inline forms (Record Sale / Transfer) ——— */
+.panel-inline-form {
+  margin-top: 18px;
+  padding: 14px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.panel-inline-form h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel-inline-form input,
+.panel-inline-form select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.panel-inline-form input:focus,
+.panel-inline-form select:focus {
+  border-color: rgba(212, 175, 55, 0.55);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+.panel-inline-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-sale {
+  background: linear-gradient(180deg, #27ae60 0%, #1e8449 100%);
+  border-color: rgba(39, 174, 96, 0.55);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-sale:hover {
+  background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+  border-color: rgba(46, 204, 113, 0.75);
+}
+
+.btn-transfer {
+  background: linear-gradient(180deg, #3498db 0%, #2471a3 100%);
+  border-color: rgba(52, 152, 219, 0.55);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-transfer:hover {
+  background: linear-gradient(180deg, #5dade2 0%, #3498db 100%);
+  border-color: rgba(93, 173, 226, 0.75);
+}
+
 .card-tax {
   position: relative;
 }

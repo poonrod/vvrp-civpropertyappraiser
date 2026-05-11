@@ -107,11 +107,54 @@ async function create(req, res) {
   }
 }
 
+async function detectOwnerChanges(current, incoming) {
+  const changes = [];
+  const oldOwners = new Set();
+  const newOwners = new Set();
+
+  if (current.type === 'Residential' && Array.isArray(current.residential_owners)) {
+    current.residential_owners.forEach((o) => oldOwners.add(o.name));
+  } else {
+    oldOwners.add(current.owner_name);
+  }
+
+  if (incoming.type === 'Residential' && Array.isArray(incoming.residential_owners)) {
+    incoming.residential_owners.forEach((o) => newOwners.add(o.name));
+  } else {
+    newOwners.add(incoming.owner_name);
+  }
+
+  for (const name of newOwners) {
+    if (!oldOwners.has(name)) changes.push({ action: 'OWNER_ADDED', name });
+  }
+  for (const name of oldOwners) {
+    if (!newOwners.has(name)) changes.push({ action: 'OWNER_REMOVED', name });
+  }
+  return changes;
+}
+
 async function update(req, res) {
   const current = await getPropertyById(req.params.id);
   if (!current) return res.status(404).json({ error: 'Not found' });
   try {
     const payload = { ...req.body, geojson: current.geojson };
+
+    const ownerChanges = await detectOwnerChanges(current, payload);
+    for (const change of ownerChanges) {
+      const note = change.action === 'OWNER_ADDED'
+        ? `Owner added: ${change.name}`
+        : `Owner removed: ${change.name}`;
+      await createTransaction({
+        property_id: current.id,
+        from_owner: current.owner_name,
+        to_owner: payload.owner_name || current.owner_name,
+        sale_price: 0,
+        transfer_date: new Date(),
+        notes: note,
+        created_by: req.session.user.id
+      });
+    }
+
     await updateProperty(req.params.id, payload);
     await safeAudit(() =>
       createAuditLog({
@@ -258,9 +301,8 @@ async function exportPdf(req, res) {
     : property.type === 'Commercial' ? 'Commercial Property Tax'
     : 'Annual Property Tax';
   doc.text(`${taxLabel}: $${Number(property.annual_tax || 0).toLocaleString()} (${Number(property.tax_rate || 0)}%)`);
-  const monthlyTax = Number(property.annual_tax || 0) / 12;
-  if (monthlyTax > 0) {
-    doc.text(`Monthly Tax: $${monthlyTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  if (Number(property.annual_tax || 0) > 0) {
+    doc.text(`Yearly Tax: $${Number(property.annual_tax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
   }
   doc.text(`Status: ${property.status}`);
   doc.moveDown();
