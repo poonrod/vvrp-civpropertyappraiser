@@ -2,7 +2,7 @@ const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
 const { AuditLog, LoginLog, Property, PropertyTransaction } = require('../models/schemas');
 const { listUsers, updateUserRole } = require('../models/userModel');
-const { listPropertiesForMap, createProperty } = require('../models/propertyModel');
+const { listPropertiesForMap, createProperty, bulkRecalcAssessedValues } = require('../models/propertyModel');
 const { listBusinesses } = require('../models/businessModel');
 const {
   listTaxPresets,
@@ -123,8 +123,14 @@ router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
 
 router.post('/settings/general', requireAuth, requireRole('admin'), async (req, res) => {
   try {
-    await setSetting('price_per_sqft', Number(req.body.price_per_sqft) || 0);
+    const newPrice = Number(req.body.price_per_sqft) || 0;
+    const oldPrice = Number(await getSetting('price_per_sqft')) || 0;
+    await setSetting('price_per_sqft', newPrice);
     await setSetting('discord_webhook_url', String(req.body.discord_webhook_url || '').trim());
+    if (newPrice > 0 && newPrice !== oldPrice) {
+      const count = await bulkRecalcAssessedValues(newPrice);
+      console.log(`[admin] Recalculated assessed values for ${count} properties at $${newPrice}/sqft`);
+    }
   } catch (e) {
     console.error(e);
   }

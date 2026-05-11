@@ -199,6 +199,23 @@ async function deleteProperty(id) {
   await Property.findByIdAndDelete(id);
 }
 
+async function bulkRecalcAssessedValues(pricePerSqft) {
+  const price = Number(pricePerSqft) || 0;
+  if (price <= 0) return 0;
+  const props = await Property.find({ square_footage: { $gt: 0 } }).lean();
+  let count = 0;
+  for (const p of props) {
+    const newAssessed = p.square_footage * price;
+    const newTax = calculateAnnualTax(newAssessed, p.tax_rate || 0);
+    await Property.findByIdAndUpdate(p._id, {
+      assessed_value: newAssessed,
+      annual_tax: newTax
+    });
+    count++;
+  }
+  return count;
+}
+
 module.exports = {
   listPropertiesForMap,
   getPropertyById,
@@ -208,6 +225,7 @@ module.exports = {
   deleteProperty,
   generateParcelId,
   calculateAnnualTax,
+  bulkRecalcAssessedValues,
   DEFAULT_TAX_RATES,
   defaultTaxRateForType
 };
