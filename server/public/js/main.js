@@ -682,6 +682,7 @@ function renderPanel(p) {
     panel.querySelector('.panel-inline-form')?.remove();
     const isResMulti = p.type === 'Residential' && Array.isArray(p.residential_owners) && p.residential_owners.length > 1;
     const ownersList = isResMulti ? p.residential_owners : [];
+    const isNonResidential = p.type !== 'Residential';
 
     const sellerHtml = isResMulti
       ? `<span class="field-label">Selling owner</span>
@@ -690,11 +691,26 @@ function renderPanel(p) {
          ).join('')}</select>`
       : '';
 
+    const buyerTypeHtml = isNonResidential
+      ? `<span class="field-label">Buyer type</span>
+         <select id="saleBuyerType">
+           <option value="Individual">Individual</option>
+           <option value="Business">Business</option>
+         </select>
+         <div id="saleBizNameGroup" class="hidden" style="position:relative;">
+           <span class="field-label">Business name</span>
+           <input type="text" id="saleBizNameInput" placeholder="Search business..." autocomplete="off" />
+           <input type="hidden" id="saleBizIdInput" />
+           <div id="saleBizSuggestions" class="autocomplete-list hidden"></div>
+         </div>`
+      : '';
+
     panel.querySelector('.panel__inner')?.insertAdjacentHTML('beforeend', `
       <div class="panel-inline-form">
         <h4>Record Sale</h4>
         ${sellerHtml}
-        <span class="field-label">Buyer</span>
+        ${buyerTypeHtml}
+        <span class="field-label">${isNonResidential ? 'Buyer (owner name / representative)' : 'Buyer'}</span>
         <input type="text" id="saleBuyerName" placeholder="Sold to (buyer name)" />
         <input type="number" id="salePrice" placeholder="Sale price" step="0.01" />
         <input type="text" id="saleNotes" placeholder="Notes (optional)" />
@@ -704,6 +720,69 @@ function renderPanel(p) {
         </div>
       </div>
     `);
+
+    if (isNonResidential) {
+      const saleBuyerType = panel.querySelector('#saleBuyerType');
+      const saleBizNameGroup = panel.querySelector('#saleBizNameGroup');
+      const saleBizNameInput = panel.querySelector('#saleBizNameInput');
+      const saleBizIdInput = panel.querySelector('#saleBizIdInput');
+      const saleBizSuggestions = panel.querySelector('#saleBizSuggestions');
+      let saleBizTimeout;
+
+      saleBuyerType.addEventListener('change', () => {
+        const isBiz = saleBuyerType.value === 'Business';
+        saleBizNameGroup.classList.toggle('hidden', !isBiz);
+        if (!isBiz) {
+          saleBizNameInput.value = '';
+          saleBizIdInput.value = '';
+          saleBizSuggestions.innerHTML = '';
+          saleBizSuggestions.classList.add('hidden');
+        }
+      });
+
+      async function fetchSaleBizSuggestions(query) {
+        if (!query || query.length < 1) {
+          saleBizSuggestions.innerHTML = '';
+          saleBizSuggestions.classList.add('hidden');
+          return;
+        }
+        try {
+          const r = await fetch(`/api/businesses/search?q=${encodeURIComponent(query)}`, { credentials: 'same-origin' });
+          if (!r.ok) return;
+          const results = await r.json();
+          saleBizSuggestions.innerHTML = '';
+          if (results.length === 0) { saleBizSuggestions.classList.add('hidden'); return; }
+          results.forEach((biz) => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.textContent = biz.name;
+            item.dataset.id = biz.id;
+            item.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              saleBizNameInput.value = biz.name;
+              saleBizIdInput.value = biz.id;
+              saleBizSuggestions.innerHTML = '';
+              saleBizSuggestions.classList.add('hidden');
+            });
+            saleBizSuggestions.appendChild(item);
+          });
+          saleBizSuggestions.classList.remove('hidden');
+        } catch (_) { /* ignore */ }
+      }
+
+      saleBizNameInput.addEventListener('input', () => {
+        saleBizIdInput.value = '';
+        clearTimeout(saleBizTimeout);
+        saleBizTimeout = setTimeout(() => fetchSaleBizSuggestions(saleBizNameInput.value.trim()), 250);
+      });
+      saleBizNameInput.addEventListener('blur', () => {
+        setTimeout(() => saleBizSuggestions.classList.add('hidden'), 200);
+      });
+      saleBizNameInput.addEventListener('focus', () => {
+        if (saleBizNameInput.value.trim()) fetchSaleBizSuggestions(saleBizNameInput.value.trim());
+      });
+    }
+
     panel.querySelector('#cancelSale')?.addEventListener('click', () => {
       panel.querySelector('.panel-inline-form')?.remove();
     });
@@ -712,20 +791,38 @@ function renderPanel(p) {
       const price = Number(panel.querySelector('#salePrice')?.value || 0);
       const notes = panel.querySelector('#saleNotes')?.value?.trim() || null;
       if (!buyer) { alert('Enter the buyer name'); return; }
+
+      const isNonRes = p.type !== 'Residential';
+      const buyerType = isNonRes ? (panel.querySelector('#saleBuyerType')?.value || 'Individual') : 'Individual';
+      const bizName = isNonRes ? (panel.querySelector('#saleBizNameInput')?.value?.trim() || '') : '';
+      const bizId = isNonRes ? (panel.querySelector('#saleBizIdInput')?.value || '') : '';
+
+      if (buyerType === 'Business' && !bizName) { alert('Enter the business name'); return; }
+
       const seller = isResMulti
         ? (panel.querySelector('#saleSellerSelect')?.value || p.owner_name)
         : p.owner_name;
+
+      const payload = {
+        from_owner: seller,
+        to_owner: buyerType === 'Business' ? bizName : buyer,
+        sale_price: price,
+        transfer_date: new Date().toISOString(),
+        notes: notes ? `Sale: ${notes}` : 'Property sale',
+        owner_type: buyerType
+      };
+      if (buyerType === 'Business') {
+        payload.business_name = bizName;
+        payload.business_id = bizId;
+        payload.to_owner = buyer;
+        payload.business_display = bizName;
+      }
+
       const res = await fetch(`/api/properties/${encodeURIComponent(p.id)}/transfer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
         credentials: 'same-origin',
-        body: JSON.stringify({
-          from_owner: seller,
-          to_owner: buyer,
-          sale_price: price,
-          transfer_date: new Date().toISOString(),
-          notes: notes ? `Sale: ${notes}` : 'Property sale'
-        })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         panel.querySelector('.panel-inline-form')?.remove();

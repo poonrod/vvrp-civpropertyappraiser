@@ -223,10 +223,18 @@ async function transfer(req, res) {
   const seller = req.body.from_owner || property.owner_name;
 
   try {
+    if (req.body.business_name && !req.body.business_id) {
+      req.body.business_id = await findOrCreateByName(req.body.business_name);
+    }
+
+    const transactionTo = req.body.business_display
+      ? `${req.body.to_owner} (${req.body.business_display})`
+      : req.body.to_owner;
+
     await createTransaction({
       property_id: property.id,
       from_owner: seller,
-      to_owner: req.body.to_owner,
+      to_owner: transactionTo,
       sale_price: req.body.sale_price,
       transfer_date: req.body.transfer_date,
       notes: req.body.notes,
@@ -254,12 +262,20 @@ async function transfer(req, res) {
 
     const newPrimary = residential_owners.length > 0 ? residential_owners[0].name : req.body.to_owner;
 
-    await updateProperty(property.id, {
+    const updatePayload = {
       ...property,
       owner_name: newPrimary,
       owner_type: req.body.owner_type || property.owner_type,
       residential_owners
-    });
+    };
+
+    if (req.body.owner_type === 'Business' && req.body.business_id) {
+      updatePayload.business_id = req.body.business_id;
+    } else if (req.body.owner_type === 'Individual') {
+      updatePayload.business_id = null;
+    }
+
+    await updateProperty(property.id, updatePayload);
 
     res.json({ success: true });
   } catch (e) {
