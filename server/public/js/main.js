@@ -870,7 +870,7 @@ propertyForm?.addEventListener('submit', async (e) => {
     return;
   }
 
-  if (!editingId && selectedWorkOrderId) {
+  if (selectedWorkOrderId) {
     fetch(`/api/property-requests/${encodeURIComponent(selectedWorkOrderId)}/complete`, {
       method: 'PATCH',
       headers: { 'CSRF-Token': csrfToken },
@@ -912,12 +912,60 @@ async function loadWorkOrders() {
   });
 }
 
-workOrderSelect?.addEventListener('change', () => {
+workOrderSelect?.addEventListener('change', async () => {
   const id = workOrderSelect.value;
   if (!id) { selectedWorkOrderId = null; return; }
   const wo = pendingWorkOrders.find((w) => (w._id || w.id) === id);
   if (!wo) return;
   selectedWorkOrderId = id;
+
+  const searchTerm = (wo.address || wo.postal || '').trim();
+  if (searchTerm) {
+    try {
+      const r = await fetch(`/api/properties?search=${encodeURIComponent(searchTerm)}`, { credentials: 'same-origin' });
+      if (r.ok) {
+        const matches = await r.json();
+        const match = Array.isArray(matches) ? matches.find((p) => {
+          if (p.details_public_hidden) return false;
+          const addr = (p.address || '').toLowerCase();
+          return addr === searchTerm.toLowerCase();
+        }) : null;
+        if (match) {
+          propertyModal?.classList.add('hidden');
+          const propRes = await fetch(`/api/properties/${encodeURIComponent(match.id)}`, { credentials: 'same-origin' });
+          const propData = await propRes.json().catch(() => null);
+          if (propData && !propData.error) {
+            editPropertyId.value = match.id;
+            propertyModalTitle.textContent = 'Edit property (from work order)';
+            parcelDisplayRow?.classList.remove('hidden');
+            if (parcelDisplay) parcelDisplay.textContent = propData.parcel_id || '';
+            propertyFormSubmit.textContent = 'Save changes';
+            document.getElementById('geojsonInput').value = JSON.stringify(propData.geojson);
+            fillFormFromProperty(propData);
+
+            if (wo.type === 'Residential' && Array.isArray(wo.residential_owners) && wo.residential_owners.length > 0) {
+              wo.residential_owners.forEach((o) => {
+                const existing = collectCoOwners().some((e) => e.name.toLowerCase() === o.name.toLowerCase());
+                if (!existing) addCoOwnerRow(o.name || '', o.owner_type || 'Individual');
+              });
+            } else if (wo.owner_name) {
+              const existingNames = collectCoOwners().map((e) => e.name.toLowerCase());
+              if (!existingNames.includes(wo.owner_name.toLowerCase()) &&
+                  (propData.owner_name || '').toLowerCase() !== wo.owner_name.toLowerCase()) {
+                if (propData.type === 'Residential') {
+                  addCoOwnerRow(wo.owner_name, wo.owner_type || 'Individual');
+                }
+              }
+            }
+
+            if (workOrderGroup) workOrderGroup.classList.add('hidden');
+            propertyModal.classList.remove('hidden');
+            return;
+          }
+        }
+      }
+    } catch { /* fall through to new-property fill */ }
+  }
 
   if (propertyTypeSelect) propertyTypeSelect.value = wo.type || 'Residential';
   syncOwnerFieldsVisibility();
