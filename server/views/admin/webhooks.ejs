@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Outbound Webhooks — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <style>
+    .webhook-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .webhook-table th,
+    .webhook-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border, #333); }
+    .webhook-table th { font-size: 13px; color: var(--text-muted, #999); text-transform: uppercase; letter-spacing: .5px; }
+    .webhook-url { word-break: break-all; font-family: monospace; font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .badge--active { background: #22c55e22; color: #22c55e; }
+    .badge--inactive { background: #ef444422; color: #ef4444; }
+    .event-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .event-tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; background: var(--surface-2, #2a2a2a); color: var(--text-muted, #999); }
+    .webhook-form { margin-top: 16px; }
+    .webhook-form label { display: block; margin-bottom: 4px; font-size: 13px; color: var(--text-muted, #999); }
+    .webhook-form input[type="url"] { width: 100%; max-width: 500px; }
+    .checkbox-grid { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 12px; }
+    .checkbox-grid label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+    .btn-row { display: flex; gap: 6px; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-header__lead">
+        <%- include('../partials/brand') %>
+        <p class="site-header__context">Outbound Webhooks</p>
+      </div>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/">Map</a>
+        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/admin/settings">Settings</a>
+        <a class="btn btn-ghost" href="/admin/users">Users</a>
+        <a class="btn btn-ghost btn-ghost--active" href="/admin/webhooks">Webhooks</a>
+        <a class="btn btn-ghost" href="/admin/audit-digest">Audit Digest</a>
+        <a class="btn btn-ghost" href="/admin/integrations">Integrations</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <section>
+      <h3>Webhook Endpoints</h3>
+      <p class="lead">Manage outbound webhook endpoints that receive event notifications.</p>
+      <div id="webhookList"><p style="color:var(--text-muted,#999)">Loading…</p></div>
+    </section>
+
+    <section>
+      <h3>Add New Endpoint</h3>
+      <form class="webhook-form" id="addForm" onsubmit="return createWebhook(event)">
+        <label>Endpoint URL</label>
+        <input type="url" id="newUrl" placeholder="https://example.com/webhook" required />
+
+        <label style="margin-top:12px">Event Types</label>
+        <div class="checkbox-grid" id="eventCheckboxes">
+          <% const events = ['sale','transfer','survey','foreclosure','lien','auction','zone_change','code_violation']; %>
+          <% events.forEach(e => { %>
+            <label><input type="checkbox" name="events" value="<%= e %>" checked /> <%= e %></label>
+          <% }) %>
+        </div>
+
+        <label style="margin-top:8px"><input type="checkbox" id="newActive" checked /> Active</label>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:12px">Add Webhook</button>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    const CSRF = '<%= csrfToken %>';
+    const API = '/api/modules/webhooks';
+
+    async function loadWebhooks() {
+      try {
+        const res = await fetch(API, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('Failed to load');
+        const hooks = await res.json();
+        renderWebhooks(hooks);
+      } catch (err) {
+        document.getElementById('webhookList').innerHTML =
+          '<p style="color:#ef4444">Failed to load webhooks.</p>';
+      }
+    }
+
+    function renderWebhooks(hooks) {
+      const el = document.getElementById('webhookList');
+      if (!hooks.length) {
+        el.innerHTML = '<p style="color:var(--text-muted,#999)">No webhook endpoints configured.</p>';
+        return;
+      }
+      let html = `<table class="webhook-table">
+        <thead><tr><th>URL</th><th>Events</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>`;
+      hooks.forEach(h => {
+        const badge = h.active
+          ? '<span class="badge badge--active">Active</span>'
+          : '<span class="badge badge--inactive">Inactive</span>';
+        const tags = (h.events || []).map(e => `<span class="event-tag">${e}</span>`).join('');
+        const created = h.created_at ? new Date(h.created_at).toLocaleDateString() : '—';
+        html += `<tr>
+          <td class="webhook-url">${escHtml(h.url)}</td>
+          <td><div class="event-tags">${tags}</div></td>
+          <td>${badge}</td>
+          <td>${created}</td>
+          <td class="btn-row">
+            <button class="btn btn-compact" onclick="toggleWebhook('${h._id}', ${!h.active})">${h.active ? 'Disable' : 'Enable'}</button>
+            <button class="btn btn-compact btn-danger" onclick="deleteWebhook('${h._id}')">Delete</button>
+          </td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      el.innerHTML = html;
+    }
+
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    async function createWebhook(e) {
+      e.preventDefault();
+      const url = document.getElementById('newUrl').value.trim();
+      const checked = [...document.querySelectorAll('#eventCheckboxes input:checked')].map(c => c.value);
+      const active = document.getElementById('newActive').checked;
+      if (!checked.length) { alert('Select at least one event type.'); return false; }
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
+          credentials: 'same-origin',
+          body: JSON.stringify({ url, events: checked, active })
+        });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || 'Failed'); return false; }
+        document.getElementById('newUrl').value = '';
+        loadWebhooks();
+      } catch { alert('Network error'); }
+      return false;
+    }
+
+    async function toggleWebhook(id, active) {
+      try {
+        const res = await fetch(`${API}/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'CSRF-Token': CSRF },
+          credentials: 'same-origin',
+          body: JSON.stringify({ active })
+        });
+        if (res.ok) loadWebhooks();
+      } catch { alert('Network error'); }
+    }
+
+    async function deleteWebhook(id) {
+      if (!confirm('Delete this webhook endpoint?')) return;
+      try {
+        const res = await fetch(`${API}/${id}`, {
+          method: 'DELETE',
+          headers: { 'CSRF-Token': CSRF },
+          credentials: 'same-origin'
+        });
+        if (res.ok) loadWebhooks();
+      } catch { alert('Network error'); }
+    }
+
+    loadWebhooks();
+  </script>
+</body>
+</html>

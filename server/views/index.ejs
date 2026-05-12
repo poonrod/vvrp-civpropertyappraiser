@@ -39,6 +39,9 @@
     <button type="button" class="btn btn-sm" id="bookmarkBtn" title="Save/load views" style="display:none">Views</button>
     <button type="button" class="btn btn-sm" id="leaderboardBtn" title="Leaderboard" style="display:none">Board</button>
     <button type="button" class="btn btn-sm" id="gazetteBtn" title="Gazette" style="display:none">Gazette</button>
+    <button type="button" class="btn btn-sm" id="analyticsBtn" title="Market Analytics" style="display:none">Analytics</button>
+    <button type="button" class="btn btn-sm" id="proximityBtn" title="Nearby properties" style="display:none">Nearby</button>
+    <button type="button" class="btn btn-sm" id="timelineBtn" title="Historical Timeline" style="display:none">Timeline</button>
     <button type="button" class="btn btn-sm" id="shortcutsHelp" title="Keyboard shortcuts (?)">?</button>
   </div>
 
@@ -132,6 +135,37 @@
   </div>
 
   <div class="seasonal-banner hidden" id="seasonalBanner"></div>
+
+  <div id="analyticsOverlay" class="modal hidden">
+    <div class="shortcuts-card" style="max-width:700px;max-height:85vh;overflow:auto">
+      <h3>Market Analytics</h3>
+      <div id="analyticsContent"><p class="module-empty">Loading...</p></div>
+      <button type="button" class="btn btn-compact" id="closeAnalytics">Close</button>
+    </div>
+  </div>
+
+  <div id="proximityOverlay" class="modal hidden">
+    <div class="shortcuts-card" style="max-width:500px">
+      <h3>Proximity Search</h3>
+      <div class="module-form-body" style="margin-bottom:12px">
+        <label class="field-label">Select a property first, then set radius:</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" id="proximityRadius" value="500" min="50" max="5000" step="50" style="width:100px" />
+          <span class="text-muted">meters</span>
+          <button type="button" class="btn btn-compact btn-primary" id="runProximityBtn">Search</button>
+        </div>
+      </div>
+      <div id="proximityResults"><p class="module-empty">Select a property on the map, then click Search</p></div>
+      <button type="button" class="btn btn-compact" id="closeProximity" style="margin-top:12px">Close</button>
+    </div>
+  </div>
+
+  <div id="timelineControl" class="timeline-control hidden">
+    <label class="field-label" style="color:var(--text-muted);font-size:11px">Timeline</label>
+    <input type="range" id="timelineSlider" min="0" max="100" value="100" style="width:200px" />
+    <span id="timelineDate" class="text-muted" style="font-size:11px">Now</span>
+    <button type="button" class="btn btn-compact" id="timelineClose" title="Close timeline">&times;</button>
+  </div>
 
   <div id="shortcutsOverlay" class="modal hidden">
     <div class="shortcuts-card">

@@ -2278,3 +2278,60 @@ kbd {
 .btn-danger:hover {
   background: #e74c3c;
 }
+
+/* ── Analytics Cards ───────────────────────────────── */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.analytics-card {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.analytics-card__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.analytics-card__value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ── Timeline Control ──────────────────────────────── */
+.timeline-control {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1500;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.timeline-control input[type="range"] {
+  accent-color: var(--gold);
+}
+
+.timeline-control .btn-compact {
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1;
+}

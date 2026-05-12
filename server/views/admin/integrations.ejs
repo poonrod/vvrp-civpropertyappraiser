@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Integration Status — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <style>
+    .integration-section { background: var(--surface-2, #1e1e1e); border: 1px solid var(--border, #333); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .integration-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .integration-header h4 { margin: 0; font-size: 16px; }
+    .status-pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .status-pill--enabled { background: #22c55e22; color: #22c55e; }
+    .status-pill--disabled { background: #ef444422; color: #ef4444; }
+    .endpoint-list { list-style: none; padding: 0; margin: 0; }
+    .endpoint-item { padding: 10px 0; border-bottom: 1px solid var(--border, #333); }
+    .endpoint-item:last-child { border-bottom: none; }
+    .endpoint-method-path { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .endpoint-method { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; font-family: monospace; background: #3b82f622; color: #3b82f6; }
+    .endpoint-path { font-family: monospace; font-size: 13px; color: var(--text, #e0e0e0); cursor: pointer; border-bottom: 1px dashed var(--text-muted, #666); }
+    .endpoint-path:hover { color: var(--accent, #60a5fa); }
+    .endpoint-desc { font-size: 13px; color: var(--text-muted, #999); margin: 0; }
+    .copy-toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface-3, #2a2a2a); color: var(--text, #e0e0e0); border: 1px solid var(--border, #333); padding: 10px 20px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 1000; }
+    .copy-toast--visible { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-header__lead">
+        <%- include('../partials/brand') %>
+        <p class="site-header__context">Integration Status</p>
+      </div>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/">Map</a>
+        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/admin/settings">Settings</a>
+        <a class="btn btn-ghost" href="/admin/users">Users</a>
+        <a class="btn btn-ghost" href="/admin/webhooks">Webhooks</a>
+        <a class="btn btn-ghost" href="/admin/audit-digest">Audit Digest</a>
+        <a class="btn btn-ghost btn-ghost--active" href="/admin/integrations">Integrations</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <section>
+      <h3>Integration Status</h3>
+      <p class="lead">Overview of external integration modules and their available API endpoints.</p>
+    </section>
+
+    <%
+      const fivemEnabled = modules && modules.fivem_bridge;
+      const discordEnabled = modules && modules.discord_bot;
+    %>
+
+    <div class="integration-section">
+      <div class="integration-header">
+        <h4>FiveM Bridge</h4>
+        <span class="status-pill <%= fivemEnabled ? 'status-pill--enabled' : 'status-pill--disabled' %>">
+          <%= fivemEnabled ? 'Enabled' : 'Disabled' %>
+        </span>
+      </div>
+      <ul class="endpoint-list">
+        <li class="endpoint-item">
+          <div class="endpoint-method-path">
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path" onclick="copyEndpoint(this)" title="Click to copy">/api/modules/fivem/property-at?x=&amp;y=</span>
+          </div>
+          <p class="endpoint-desc">Find property at world coordinates</p>
+        </li>
+        <li class="endpoint-item">
+          <div class="endpoint-method-path">
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path" onclick="copyEndpoint(this)" title="Click to copy">/api/modules/fivem/by-owner?name=</span>
+          </div>
+          <p class="endpoint-desc">Find properties by owner name</p>
+        </li>
+        <li class="endpoint-item">
+          <div class="endpoint-method-path">
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path" onclick="copyEndpoint(this)" title="Click to copy">/api/modules/fivem/for-sale</span>
+          </div>
+          <p class="endpoint-desc">List properties currently for sale</p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="integration-section">
+      <div class="integration-header">
+        <h4>Discord Bot</h4>
+        <span class="status-pill <%= discordEnabled ? 'status-pill--enabled' : 'status-pill--disabled' %>">
+          <%= discordEnabled ? 'Enabled' : 'Disabled' %>
+        </span>
+      </div>
+      <ul class="endpoint-list">
+        <li class="endpoint-item">
+          <div class="endpoint-method-path">
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path" onclick="copyEndpoint(this)" title="Click to copy">/api/modules/discord/lookup?parcel=</span>
+          </div>
+          <p class="endpoint-desc">Lookup property by parcel ID</p>
+        </li>
+        <li class="endpoint-item">
+          <div class="endpoint-method-path">
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path" onclick="copyEndpoint(this)" title="Click to copy">/api/modules/discord/owner?name=</span>
+          </div>
+          <p class="endpoint-desc">Lookup properties by owner name</p>
+        </li>
+        <li class="endpoint-item">
+          <div class="endpoint-method-path">
+            <span class="endpoint-method">GET</span>
+            <span class="endpoint-path" onclick="copyEndpoint(this)" title="Click to copy">/api/modules/discord/tax-owed?parcel=</span>
+          </div>
+          <p class="endpoint-desc">Check tax owed on a parcel</p>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="copy-toast" id="copyToast">Copied to clipboard</div>
+
+  <script>
+    function copyEndpoint(el) {
+      const text = el.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('copyToast');
+        toast.classList.add('copy-toast--visible');
+        setTimeout(() => toast.classList.remove('copy-toast--visible'), 1500);
+      });
+    }
+  </script>
+</body>
+</html>

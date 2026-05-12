@@ -11,7 +11,7 @@ const {
   deleteTaxPreset
 } = require('../models/taxPresetModel');
 const { getSetting, setSetting, getSettings } = require('../models/appSettingModel');
-const { invalidateModuleCache } = require('../middleware/moduleMiddleware');
+const { invalidateModuleCache, requireModule } = require('../middleware/moduleMiddleware');
 const { MODULE_DEFINITIONS, MODULE_CATEGORIES, getDefaultModules } = require('../config/moduleDefinitions');
 
 const router = express.Router();
@@ -194,6 +194,18 @@ router.post('/settings/tax-presets/:id/delete', requireAuth, requireRole('admin'
     console.error(e);
   }
   res.redirect('/admin/settings');
+});
+
+router.get('/webhooks', requireAuth, requireRole('admin'), requireModule('webhook_events'), (req, res) => {
+  res.render('admin/webhooks', { user: req.session.user, csrfToken: req.csrfToken() });
+});
+
+router.get('/audit-digest', requireAuth, requireRole('admin'), requireModule('audit_digest'), (req, res) => {
+  res.render('admin/audit-digest', { user: req.session.user, csrfToken: req.csrfToken() });
+});
+
+router.get('/integrations', requireAuth, requireRole('admin'), (req, res) => {
+  res.render('admin/integrations', { user: req.session.user, modules: res.locals.modules || {} });
 });
 
 module.exports = router;

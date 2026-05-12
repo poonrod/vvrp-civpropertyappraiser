@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audit Digest — SAPA</title>
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <style>
+    .digest-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .digest-controls select { padding: 8px 12px; }
+    .digest-results { margin-top: 16px; }
+    .digest-card { background: var(--surface-2, #1e1e1e); border: 1px solid var(--border, #333); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .digest-card h4 { margin: 0 0 12px; font-size: 16px; }
+    .digest-stat { display: inline-block; background: var(--surface-3, #2a2a2a); border-radius: 6px; padding: 12px 20px; margin: 0 8px 8px 0; text-align: center; }
+    .digest-stat__value { display: block; font-size: 28px; font-weight: 700; color: var(--accent, #60a5fa); }
+    .digest-stat__label { display: block; font-size: 12px; color: var(--text-muted, #999); margin-top: 2px; text-transform: uppercase; letter-spacing: .5px; }
+    .breakdown-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .breakdown-table th,
+    .breakdown-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border, #333); }
+    .breakdown-table th { font-size: 12px; color: var(--text-muted, #999); text-transform: uppercase; letter-spacing: .5px; }
+    .top-users-list { list-style: none; padding: 0; margin: 8px 0 0; }
+    .top-users-list li { padding: 6px 0; border-bottom: 1px solid var(--border, #333); display: flex; justify-content: space-between; font-size: 14px; }
+    .top-users-list li:last-child { border-bottom: none; }
+    .spinner { color: var(--text-muted, #999); }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <div class="site-header__lead">
+        <%- include('../partials/brand') %>
+        <p class="site-header__context">Audit Digest</p>
+      </div>
+      <nav class="site-nav">
+        <a class="btn btn-ghost" href="/">Map</a>
+        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/admin/settings">Settings</a>
+        <a class="btn btn-ghost" href="/admin/users">Users</a>
+        <a class="btn btn-ghost" href="/admin/webhooks">Webhooks</a>
+        <a class="btn btn-ghost btn-ghost--active" href="/admin/audit-digest">Audit Digest</a>
+        <a class="btn btn-ghost" href="/admin/integrations">Integrations</a>
+      </nav>
+    </div>
+  </header>
+  <div class="page-admin">
+    <section>
+      <h3>Audit Digest</h3>
+      <p class="lead">Generate a summary of system activity over a selected period.</p>
+
+      <div class="digest-controls">
+        <select id="daysPicker">
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30" selected>Last 30 days</option>
+        </select>
+        <button class="btn btn-primary" id="generateBtn" onclick="generateReport()">Generate Report</button>
+      </div>
+
+      <div id="results" class="digest-results"></div>
+    </section>
+  </div>
+
+  <script>
+    const CSRF = '<%= csrfToken %>';
+
+    async function generateReport() {
+      const days = document.getElementById('daysPicker').value;
+      const el = document.getElementById('results');
+      const btn = document.getElementById('generateBtn');
+      el.innerHTML = '<p class="spinner">Generating report…</p>';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/modules/audit-digest?days=${days}`, {
+          credentials: 'same-origin',
+          headers: { 'CSRF-Token': CSRF }
+        });
+        if (!res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+        renderReport(data, days);
+      } catch (err) {
+        el.innerHTML = '<p style="color:#ef4444">Failed to generate report.</p>';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderReport(data, days) {
+      const el = document.getElementById('results');
+      const period = `${days}-day period`;
+      const total = data.total_actions ?? data.totalActions ?? 0;
+
+      let html = `<div class="digest-card">
+        <h4>Summary</h4>
+        <div class="digest-stat">
+          <span class="digest-stat__value">${days}</span>
+          <span class="digest-stat__label">Days</span>
+        </div>
+        <div class="digest-stat">
+          <span class="digest-stat__value">${total.toLocaleString()}</span>
+          <span class="digest-stat__label">Total Actions</span>
+        </div>
+      </div>`;
+
+      const breakdown = data.breakdown || data.by_action || {};
+      const breakdownEntries = Object.entries(breakdown);
+      if (breakdownEntries.length) {
+        html += `<div class="digest-card">
+          <h4>Breakdown by Action Type</h4>
+          <table class="breakdown-table">
+            <thead><tr><th>Action</th><th>Count</th></tr></thead><tbody>`;
+        breakdownEntries
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([action, count]) => {
+            html += `<tr><td>${escHtml(action)}</td><td>${count}</td></tr>`;
+          });
+        html += '</tbody></table></div>';
+      }
+
+      const topUsers = data.top_users || data.topUsers || [];
+      if (topUsers.length) {
+        html += `<div class="digest-card">
+          <h4>Top Users</h4>
+          <ul class="top-users-list">`;
+        topUsers.forEach(u => {
+          const name = u.username || u.user || u._id || 'Unknown';
+          const count = u.count || u.actions || 0;
+          html += `<li><span>${escHtml(String(name))}</span><span>${count} actions</span></li>`;
+        });
+        html += '</ul></div>';
+      }
+
+      el.innerHTML = html;
+    }
+
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>

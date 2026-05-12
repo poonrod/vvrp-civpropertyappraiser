@@ -2896,6 +2896,56 @@ function renderModuleSections(p, moduleData, container) {
       if (r.ok) { showToast('Auction created', 'success'); renderPanel(p); } else showToast('Failed', 'error');
     });
   }
+
+  // Split & Merge
+  if (isModuleEnabled('split_merge') && isStaff() && user?.role === 'admin') {
+    let html = `<div class="module-section"><h4 class="module-section__title">Parcel Split & Merge</h4>`;
+    html += `<div class="module-form-body">
+      <details class="module-add-form" style="margin-bottom:8px"><summary class="btn btn-compact">Split This Parcel</summary>
+        <div class="module-form-body" style="margin-top:8px">
+          <input type="text" class="split-name-a" placeholder="Name for parcel A" />
+          <input type="text" class="split-name-b" placeholder="Name for parcel B" />
+          <input type="text" class="split-desc" placeholder="Dividing line description (optional)" />
+          <button class="btn btn-compact btn-primary split-parcel-btn" data-property="${p.id}">Split</button>
+        </div>
+      </details>
+      <details class="module-add-form"><summary class="btn btn-compact">Merge With Another</summary>
+        <div class="module-form-body" style="margin-top:8px">
+          <input type="text" class="merge-id-input" placeholder="Other property ID to merge with" />
+          <input type="text" class="merge-name-input" placeholder="Name for merged parcel" />
+          <button class="btn btn-compact btn-primary merge-parcel-btn" data-property="${p.id}">Merge</button>
+        </div>
+      </details>
+    </div></div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelector('.split-parcel-btn')?.addEventListener('click', async () => {
+      const nameA = container.querySelector('.split-name-a')?.value;
+      const nameB = container.querySelector('.split-name-b')?.value;
+      const desc = container.querySelector('.split-desc')?.value;
+      if (!nameA || !nameB) { showToast('Enter names for both parcels', 'error'); return; }
+      try {
+        const r = await fetch(`/api/modules/properties/${p.id}/split`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ name_a: nameA, name_b: nameB, dividing_line: desc || '' })
+        });
+        if (r.ok) { showToast('Parcel split successfully', 'success'); loadProperties(); } else { const e = await r.json(); showToast(e.error || 'Split failed', 'error'); }
+      } catch { showToast('Split failed', 'error'); }
+    });
+
+    container.querySelector('.merge-parcel-btn')?.addEventListener('click', async () => {
+      const otherId = container.querySelector('.merge-id-input')?.value;
+      const name = container.querySelector('.merge-name-input')?.value;
+      if (!otherId) { showToast('Enter the other property ID', 'error'); return; }
+      try {
+        const r = await fetch('/api/modules/properties/merge', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ property_ids: [p.id, otherId], merged_name: name || '' })
+        });
+        if (r.ok) { showToast('Parcels merged successfully', 'success'); loadProperties(); } else { const e = await r.json(); showToast(e.error || 'Merge failed', 'error'); }
+      } catch { showToast('Merge failed', 'error'); }
+    });
+  }
 }
 
 /* ── Modal Handling: Escape & Click-Outside ────────── */
@@ -3502,3 +3552,185 @@ if (isModuleEnabled('seasonal_events') && seasonalBanner) {
     } catch { /* optional */ }
   })();
 }
+
+/* ── Market Analytics ──────────────────────────────── */
+const analyticsBtn = document.getElementById('analyticsBtn');
+const analyticsOverlay = document.getElementById('analyticsOverlay');
+const analyticsContent = document.getElementById('analyticsContent');
+
+if (isModuleEnabled('market_analytics') && isStaff()) {
+  if (analyticsBtn) analyticsBtn.style.display = '';
+}
+
+analyticsBtn?.addEventListener('click', async () => {
+  analyticsOverlay?.classList.remove('hidden');
+  analyticsContent.innerHTML = '<p class="module-empty">Loading analytics...</p>';
+  try {
+    const [summaryRes, cyclesRes] = await Promise.all([
+      fetch('/api/modules/analytics/summary', { credentials: 'same-origin' }),
+      fetch('/api/modules/analytics/valuation-cycles', { credentials: 'same-origin' })
+    ]);
+    if (!summaryRes.ok) throw new Error();
+    const summary = await summaryRes.json();
+    const cycles = cyclesRes.ok ? await cyclesRes.json() : [];
+
+    let html = '<div style="font-size:13px">';
+
+    html += '<div class="analytics-grid">';
+    html += `<div class="analytics-card"><div class="analytics-card__label">Total Properties</div><div class="analytics-card__value">${summary.total_properties || 0}</div></div>`;
+    html += `<div class="analytics-card"><div class="analytics-card__label">Total Value</div><div class="analytics-card__value">$${Number(summary.total_value || 0).toLocaleString()}</div></div>`;
+    html += `<div class="analytics-card"><div class="analytics-card__label">Avg Value</div><div class="analytics-card__value">$${Number(summary.avg_value || 0).toLocaleString()}</div></div>`;
+    html += `<div class="analytics-card"><div class="analytics-card__label">For Sale</div><div class="analytics-card__value">${summary.for_sale || 0}</div></div>`;
+    html += '</div>';
+
+    if (summary.by_type && Object.keys(summary.by_type).length) {
+      html += '<div style="margin:16px 0"><strong>By Type</strong><div class="module-list">';
+      for (const [type, data] of Object.entries(summary.by_type)) {
+        html += `<div class="module-list-item"><span><strong>${escapeHtml(type)}</strong> — ${data.count || 0} properties</span><span class="text-muted">Total: $${Number(data.total_value || 0).toLocaleString()} | Avg: $${Number(data.avg_value || 0).toLocaleString()}</span></div>`;
+      }
+      html += '</div></div>';
+    }
+
+    if (summary.by_zone && Object.keys(summary.by_zone).length) {
+      html += '<div style="margin:16px 0"><strong>By Zone</strong><div class="module-list">';
+      for (const [zone, data] of Object.entries(summary.by_zone)) {
+        html += `<div class="module-list-item"><span><strong>${escapeHtml(zone)}</strong> — ${data.count || 0} properties</span><span class="text-muted">Total: $${Number(data.total_value || 0).toLocaleString()}</span></div>`;
+      }
+      html += '</div></div>';
+    }
+
+    if (cycles.length) {
+      html += '<div style="margin:16px 0"><strong>Valuation Cycles</strong><div class="module-list">';
+      cycles.forEach((c) => {
+        const cls = c.status === 'Applied' ? 'badge--success' : c.status === 'Draft' ? 'badge--warning' : 'badge--info';
+        html += `<div class="module-list-item"><span><strong>${escapeHtml(c.name || 'Untitled')}</strong> — ${c.multiplier || 1}x multiplier</span>
+          <span class="text-muted">${c.effective_date ? new Date(c.effective_date).toLocaleDateString() : '—'} | ${c.properties_affected || 0} affected</span>
+          <span class="badge ${cls}">${c.status}</span></div>`;
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div>';
+    analyticsContent.innerHTML = html;
+  } catch { analyticsContent.innerHTML = '<p class="module-empty">Failed to load analytics</p>'; }
+});
+
+document.getElementById('closeAnalytics')?.addEventListener('click', () => analyticsOverlay?.classList.add('hidden'));
+analyticsOverlay?.addEventListener('click', (e) => { if (e.target === analyticsOverlay) analyticsOverlay.classList.add('hidden'); });
+
+/* ── Historical Timeline ───────────────────────────── */
+const timelineBtn = document.getElementById('timelineBtn');
+const timelineControl = document.getElementById('timelineControl');
+const timelineSlider = document.getElementById('timelineSlider');
+const timelineDateLabel = document.getElementById('timelineDate');
+let timelineEvents = [];
+
+if (isModuleEnabled('timeline')) {
+  if (timelineBtn) timelineBtn.style.display = '';
+}
+
+timelineBtn?.addEventListener('click', async () => {
+  timelineControl?.classList.toggle('hidden');
+  if (!timelineControl?.classList.contains('hidden') && timelineEvents.length === 0) {
+    try {
+      const r = await fetch('/api/modules/timeline/events', { credentials: 'same-origin' });
+      if (r.ok) {
+        timelineEvents = await r.json();
+        if (timelineEvents.length > 0) {
+          timelineSlider.min = 0;
+          timelineSlider.max = timelineEvents.length - 1;
+          timelineSlider.value = timelineEvents.length - 1;
+          updateTimelineDisplay(timelineEvents.length - 1);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+});
+
+function updateTimelineDisplay(idx) {
+  if (!timelineEvents.length) return;
+  const ev = timelineEvents[idx];
+  const d = ev.date || ev.transfer_date;
+  timelineDateLabel.textContent = d ? new Date(d).toLocaleDateString() : `Event ${Number(idx) + 1}`;
+
+  if (typeof allProperties !== 'undefined' && Array.isArray(allProperties)) {
+    const cutoff = new Date(d || Date.now());
+    const visible = allProperties.filter((p) => new Date(p.created_at || 0) <= cutoff);
+    if (typeof renderMarkers === 'function') renderMarkers(visible);
+    else if (typeof loadProperties === 'function') {
+      filteredProperties = visible;
+      renderMapLabels?.();
+    }
+  }
+}
+
+timelineSlider?.addEventListener('input', (e) => updateTimelineDisplay(Number(e.target.value)));
+document.getElementById('timelineClose')?.addEventListener('click', () => {
+  timelineControl?.classList.add('hidden');
+  if (typeof loadProperties === 'function') loadProperties();
+});
+
+/* ── Proximity Search ──────────────────────────────── */
+const proximityBtn = document.getElementById('proximityBtn');
+const proximityOverlay = document.getElementById('proximityOverlay');
+const proximityResults = document.getElementById('proximityResults');
+let proximityCircle = null;
+
+if (isModuleEnabled('proximity')) {
+  if (proximityBtn) proximityBtn.style.display = '';
+}
+
+proximityBtn?.addEventListener('click', () => {
+  proximityOverlay?.classList.remove('hidden');
+  if (!selectedProperty) {
+    proximityResults.innerHTML = '<p class="module-empty">Select a property on the map first</p>';
+  }
+});
+
+document.getElementById('runProximityBtn')?.addEventListener('click', async () => {
+  if (!selectedProperty) {
+    showToast('Select a property first', 'error');
+    return;
+  }
+  const radius = document.getElementById('proximityRadius')?.value || 500;
+  proximityResults.innerHTML = '<p class="module-empty">Searching...</p>';
+  try {
+    const r = await fetch(`/api/modules/properties/${selectedProperty.id || selectedProperty._id}/nearby?radius=${radius}`, { credentials: 'same-origin' });
+    if (!r.ok) throw new Error();
+    const nearby = await r.json();
+
+    if (proximityCircle) { map.removeLayer(proximityCircle); proximityCircle = null; }
+
+    if (selectedProperty.geojson?.coordinates?.[0]) {
+      const coords = selectedProperty.geojson.coordinates[0];
+      const center = coords.reduce((acc, c) => [acc[0] + c[1] / coords.length, acc[1] + c[0] / coords.length], [0, 0]);
+      proximityCircle = L.circle(center, { radius: Number(radius), color: '#f1c40f', fillOpacity: 0.1, weight: 1 }).addTo(map);
+    }
+
+    if (!nearby.length) {
+      proximityResults.innerHTML = '<p class="module-empty">No properties found within radius</p>';
+    } else {
+      let html = `<div class="module-list"><p class="text-muted" style="margin-bottom:8px">${nearby.length} properties within ${radius}m</p>`;
+      nearby.forEach((p) => {
+        html += `<div class="module-list-item proximity-result" data-id="${p._id}" style="cursor:pointer">
+          <span><strong>${escapeHtml(p.name || p.parcel_id)}</strong></span>
+          <span class="text-muted">${escapeHtml(p.address || '')} | ${Math.round(p.distance || 0)}m away</span>
+        </div>`;
+      });
+      html += '</div>';
+      proximityResults.innerHTML = html;
+      proximityResults.querySelectorAll('.proximity-result').forEach((el) => {
+        el.addEventListener('click', () => {
+          const found = allProperties?.find((ap) => (ap.id || ap._id) === el.dataset.id);
+          if (found) { renderPanel(found); proximityOverlay?.classList.add('hidden'); }
+        });
+      });
+    }
+  } catch { proximityResults.innerHTML = '<p class="module-empty">Search failed</p>'; }
+});
+
+document.getElementById('closeProximity')?.addEventListener('click', () => {
+  proximityOverlay?.classList.add('hidden');
+  if (proximityCircle) { map.removeLayer(proximityCircle); proximityCircle = null; }
+});
+proximityOverlay?.addEventListener('click', (e) => { if (e.target === proximityOverlay) proximityOverlay.classList.add('hidden'); });
