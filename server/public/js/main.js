@@ -674,45 +674,47 @@ function renderPanel(p) {
     <div class="panel__inner panel--redesign">
       <button type="button" class="panel__close" id="closePanelBtn" title="Close">&times;</button>
       ${p.status === 'For Sale' ? `<div class="sale-banner">For Sale — Asking $${Number(p.purchase_price || 0).toLocaleString()}</div>` : ''}
-      <h3 class="panel__title">${escapeHtml(p.name)}</h3>
-      <div class="panel__meta">
-        <span class="panel__badge ${statusCls}">${escapeHtml(p.status)}</span>
-        <span class="panel__type-badge">${escapeHtml(p.type)}</span>
+
+      <div class="panel__header">
+        <div class="panel__header-info">
+          <h3 class="panel__title">${escapeHtml(p.name)}</h3>
+          <div class="panel__meta">
+            <span class="panel__badge ${statusCls}">${escapeHtml(p.status)}</span>
+            <span class="panel__type-badge">${escapeHtml(p.type)}</span>
+          </div>
+        </div>
       </div>
 
-      <div class="panel__section">
-        <div class="panel__row"><span class="panel__label">Parcel</span><span class="panel__value">${escapeHtml(String(p.parcel_id))}</span></div>
-        <div class="panel__row"><span class="panel__label">Address</span><span class="panel__value">${escapeHtml(String(p.address))}</span></div>
+      <div class="panel__info-grid">
+        <div class="panel__info-cell"><span class="panel__cell-label">Parcel</span><span class="panel__cell-value">${escapeHtml(String(p.parcel_id))}</span></div>
+        <div class="panel__info-cell"><span class="panel__cell-label">Address</span><span class="panel__cell-value">${escapeHtml(String(p.address))}</span></div>
+        <div class="panel__info-cell"><span class="panel__cell-label">Purchase Date</span><span class="panel__cell-value">${purchaseDate}</span></div>
+        <div class="panel__info-cell"><span class="panel__cell-label">Purchase Price</span><span class="panel__cell-value panel__cell-value--money">$${Number(p.purchase_price || 0).toLocaleString()}</span></div>
+        <div class="panel__info-cell"><span class="panel__cell-label">Assessed Value</span><span class="panel__cell-value panel__cell-value--money">$${Number(p.assessed_value || 0).toLocaleString()}</span></div>
+        ${Number(p.square_footage || 0) > 0 ? `<div class="panel__info-cell"><span class="panel__cell-label">Sq Footage</span><span class="panel__cell-value">${Number(p.square_footage).toLocaleString()} sqft</span></div>` : `<div class="panel__info-cell"><span class="panel__cell-label">Updated</span><span class="panel__cell-value">${updatedDate}</span></div>`}
         ${ownersDetailHtml(p)}
       </div>
 
-      <div class="panel__divider"></div>
-
-      <div class="panel__section">
-        <div class="panel__row"><span class="panel__label">Purchase Date</span><span class="panel__value">${purchaseDate}</span></div>
-        <div class="panel__row"><span class="panel__label">Purchase Price</span><span class="panel__value panel__value--money">$${Number(p.purchase_price || 0).toLocaleString()}</span></div>
-        <div class="panel__row"><span class="panel__label">Assessed Value</span><span class="panel__value panel__value--money">$${Number(p.assessed_value || 0).toLocaleString()}</span></div>
-        ${Number(p.square_footage || 0) > 0 ? `<div class="panel__row"><span class="panel__label">Sq. Footage</span><span class="panel__value">${Number(p.square_footage).toLocaleString()} sqft</span></div>` : ''}
-      </div>
-
-      <div class="panel__tax-card">
-        <div class="panel__tax-header">
-          <span>${p.type === 'Commercial' ? 'Commercial' : p.type === 'Residential' ? 'Residential' : 'Property'} Tax</span>
+      <div class="panel__tax-strip">
+        <div class="panel__tax-left">
+          <span class="panel__tax-amount">$${Number(p.annual_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span class="panel__tax-period">/ year</span>
+        </div>
+        <div class="panel__tax-right">
+          ${p.tax_zone ? `<span class="panel__tax-zone">${escapeHtml(p.tax_zone)}</span>` : ''}
           <span class="panel__tax-rate">${Number(p.tax_rate || 0)}%</span>
         </div>
-        ${p.tax_zone ? `<div class="panel__tax-zone">${escapeHtml(p.tax_zone)}</div>` : ''}
-        <div class="panel__tax-amount">$${Number(p.annual_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<span class="panel__tax-period">/ year</span></div>
       </div>
-
-      <div class="panel__row panel__row--subtle"><span class="panel__label">Updated</span><span class="panel__value">${updatedDate}</span></div>
 
       <div class="panel__actions">
+        ${editBtn}
+        ${txBtn}
         ${saleBtn}
         ${transferBtn}
-        ${txBtn}
-        ${editBtn}
         ${deleteBtn}
       </div>
+
+      <div class="panel__divider"></div>
     </div>`;
   }
 
@@ -979,18 +981,68 @@ function renderPanel(p) {
     });
   });
 
-  // Load and render module-specific sections
+  // Load and render module-specific sections with tabbed layout
   if (p.id && !hidden) {
     const inner = panel.querySelector('.panel__inner');
     if (inner) {
-      const moduleContainer = document.createElement('div');
-      moduleContainer.className = 'panel-modules';
-      const closeBtnEl = inner.querySelector('#closePanelBtn');
-      if (closeBtnEl) inner.insertBefore(moduleContainer, closeBtnEl);
-      else inner.appendChild(moduleContainer);
+      const moduleWrapper = document.createElement('div');
+      moduleWrapper.className = 'panel-modules';
+      inner.appendChild(moduleWrapper);
 
       loadModuleData(p.id).then((moduleData) => {
-        renderModuleSections(p, moduleData, moduleContainer);
+        const tempContainer = document.createElement('div');
+        renderModuleSections(p, moduleData, tempContainer);
+        const sections = tempContainer.querySelectorAll('.module-section');
+        if (sections.length === 0) return;
+
+        const groups = {};
+        const groupOrder = ['finance', 'legal', 'property', 'records', 'admin'];
+        const groupLabels = { finance: 'Finance', legal: 'Legal', property: 'Property', records: 'Records', admin: 'Admin' };
+        const moduleGroupMap = {
+          'Tax Ledger': 'finance', 'Mortgages': 'finance', 'Insurance': 'finance', 'HOA & Community Fees': 'finance',
+          'Tax Exemptions': 'finance', 'Auctions': 'finance',
+          'Liens & Warrants': 'legal', 'Foreclosure': 'legal', 'Zoning & Permits': 'legal',
+          'Eminent Domain': 'legal', 'Code Enforcement': 'legal', 'Property Disputes': 'legal',
+          'Photos': 'property', 'Inspections': 'property', 'Improvements': 'property',
+          'Damage Reports': 'property', 'Utilities': 'property', 'Environmental Hazards': 'property',
+          'Historical Landmark': 'property', 'Landmarks': 'property',
+          'Leases': 'records', 'Staff Notes': 'records', 'Reminders': 'records',
+          'Access Lists': 'records', 'Parking': 'records',
+          'Parcel Split & Merge': 'admin'
+        };
+
+        sections.forEach((sec) => {
+          const title = sec.querySelector('.module-section__title')?.textContent?.trim()?.replace(/\d+$/, '').trim() || 'Other';
+          const group = moduleGroupMap[title] || 'records';
+          if (!groups[group]) groups[group] = [];
+          groups[group].push(sec);
+        });
+
+        let tabsHtml = '<div class="panel__module-tabs">';
+        const activeGroups = groupOrder.filter((g) => groups[g]?.length);
+        activeGroups.forEach((g, i) => {
+          const count = groups[g].length;
+          tabsHtml += `<button class="panel__module-tab${i === 0 ? ' panel__module-tab--active' : ''}" data-group="${g}">${groupLabels[g]}<span class="tab-count">${count}</span></button>`;
+        });
+        tabsHtml += '</div>';
+        moduleWrapper.innerHTML = tabsHtml;
+
+        activeGroups.forEach((g, i) => {
+          const groupDiv = document.createElement('div');
+          groupDiv.className = `panel__module-group panel-modules--grid${i === 0 ? ' panel__module-group--active' : ''}`;
+          groupDiv.dataset.group = g;
+          groups[g].forEach((sec) => groupDiv.appendChild(sec));
+          moduleWrapper.appendChild(groupDiv);
+        });
+
+        moduleWrapper.querySelectorAll('.panel__module-tab').forEach((tab) => {
+          tab.addEventListener('click', () => {
+            moduleWrapper.querySelectorAll('.panel__module-tab').forEach((t) => t.classList.remove('panel__module-tab--active'));
+            moduleWrapper.querySelectorAll('.panel__module-group').forEach((g) => g.classList.remove('panel__module-group--active'));
+            tab.classList.add('panel__module-tab--active');
+            moduleWrapper.querySelector(`.panel__module-group[data-group="${tab.dataset.group}"]`)?.classList.add('panel__module-group--active');
+          });
+        });
       });
     }
   }
