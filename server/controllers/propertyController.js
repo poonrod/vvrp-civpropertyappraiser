@@ -178,6 +178,12 @@ async function update(req, res) {
       annual_tax: calculateAnnualTax(req.body.assessed_value, req.body.tax_rate)
     });
   } catch (e) {
+    if (e.code === 11000) {
+      return res.status(409).json({ error: 'Duplicate parcel_id or unique constraint violation' });
+    }
+    if (e.name === 'ValidationError') {
+      return res.status(400).json({ error: e.message });
+    }
     console.error(e);
     res.status(500).json({ error: 'Could not update property' });
   }
