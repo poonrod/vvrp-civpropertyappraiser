@@ -126,7 +126,8 @@ function worldToLatLng(wx, wy, calibration) {
       cal.affine.px[0] * wx + cal.affine.px[1] * wy + cal.affine.px[2];
     const py =
       cal.affine.py[0] * wx + cal.affine.py[1] * wy + cal.affine.py[2];
-    return L.latLng(py + nudgeLat, px + nudgeLng);
+    // Affine produces image-pixel-y (0=top). Flip to Leaflet lat (0=bottom).
+    return L.latLng(mapExtents.latMax - py + nudgeLat, px + nudgeLng);
   }
 
   const dx = wxMax - wxMin;
@@ -134,7 +135,8 @@ function worldToLatLng(wx, wy, calibration) {
   const tX = dx === 0 ? 0 : (wx - wxMin) / dx;
   const tY = dy === 0 ? 0 : (wy - wyMin) / dy;
   const lng = mapExtents.lngMin + tX * (mapExtents.lngMax - mapExtents.lngMin);
-  const lat = mapExtents.latMax - tY * (mapExtents.latMax - mapExtents.latMin);
+  // GTA5 Y increases north, Leaflet lat increases north — same direction, no flip
+  const lat = mapExtents.latMin + tY * (mapExtents.latMax - mapExtents.latMin);
   return L.latLng(lat + nudgeLat, lng + nudgeLng);
 }
 
@@ -142,8 +144,9 @@ function postalEntryToLatLng(p, calibration, globalNudge) {
   if (Number.isFinite(Number(p.y)) && Number.isFinite(Number(p.x))) {
     const gn = globalNudge || { lat: 0, lng: 0 };
     const mn = p.marker_nudge || {};
+    // OCR y/x are image-pixel coords (y=0 at top). Flip y to Leaflet lat (0=bottom).
     return L.latLng(
-      Number(p.y) + Number(mn.lat || 0) + Number(gn.lat || 0),
+      (mapExtents.latMax - Number(p.y)) + Number(mn.lat || 0) + Number(gn.lat || 0),
       Number(p.x) + Number(mn.lng || 0) + Number(gn.lng || 0)
     );
   }
