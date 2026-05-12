@@ -18,13 +18,13 @@ const userSchema = new Schema(
 const businessSchema = new Schema(
   {
     name: { type: String, required: true },
-    license_id: { type: String, default: null },
+    license_id: { type: String },
     type: { type: String, default: null },
     ceo_name: { type: String, default: null }
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
-businessSchema.index({ license_id: 1 }, { unique: true, sparse: true });
+businessSchema.index({ license_id: 1 }, { unique: true, partialFilterExpression: { license_id: { $type: 'string' } } });
 
 const propertySchema = new Schema(
   {

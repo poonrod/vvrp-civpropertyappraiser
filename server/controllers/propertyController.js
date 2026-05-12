@@ -101,7 +101,8 @@ async function create(req, res) {
     res.status(201).json(created);
   } catch (e) {
     if (e.code === 11000) {
-      return res.status(409).json({ error: 'Duplicate parcel_id or unique constraint violation' });
+      const field = Object.keys(e.keyPattern || {})[0] || 'unknown';
+      return res.status(409).json({ error: `Duplicate value for "${field}"` });
     }
     if (e.name === 'ValidationError') {
       return res.status(400).json({ error: e.message });
@@ -179,7 +180,8 @@ async function update(req, res) {
     });
   } catch (e) {
     if (e.code === 11000) {
-      return res.status(409).json({ error: 'Duplicate parcel_id or unique constraint violation' });
+      const field = Object.keys(e.keyPattern || {})[0] || 'unknown';
+      return res.status(409).json({ error: `Duplicate value for "${field}"` });
     }
     if (e.name === 'ValidationError') {
       return res.status(400).json({ error: e.message });
