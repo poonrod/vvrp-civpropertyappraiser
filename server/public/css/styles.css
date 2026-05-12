@@ -624,11 +624,54 @@ body.layout-map {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 14px;
+  margin: 0 0 8px;
   padding: 10px 14px;
   background: rgba(212, 175, 55, 0.06);
   border: 1px solid rgba(212, 175, 55, 0.12);
   border-radius: 8px;
+}
+
+.panel__fees-strip {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: rgba(96, 165, 250, 0.05);
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  border-radius: 8px;
+}
+
+.panel__fees-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.panel__fees-total {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel__fees-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.panel__fee-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.panel__fee-row span:last-child {
+  color: var(--text);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .panel__tax-left {
@@ -2561,4 +2604,46 @@ kbd {
   padding: 2px 8px;
   font-size: 14px;
   line-height: 1;
+}
+
+/* ── Report History Toggle ─────────────────────────── */
+.report-history {
+  margin-top: 6px;
+}
+
+.report-history summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.report-history summary::-webkit-details-marker {
+  display: none;
+}
+
+.btn-history {
+  width: 100%;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  transition: all 0.15s;
+}
+
+.btn-history:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+  border-style: solid;
+}
+
+.report-history[open] .btn-history {
+  margin-bottom: 8px;
+  border-style: solid;
+  color: var(--gold-muted);
+}
+
+.report-history .module-list {
+  gap: 6px;
 }

@@ -707,6 +707,8 @@ function renderPanel(p) {
         </div>
       </div>
 
+      <div class="panel__fees-area" id="panelFees"></div>
+
       <div class="panel__actions">
         ${editBtn}
         ${txBtn}
@@ -991,6 +993,7 @@ function renderPanel(p) {
       inner.appendChild(moduleWrapper);
 
       loadModuleData(p.id).then((moduleData) => {
+        renderFeesPreview(p, moduleData);
         const tempContainer = document.createElement('div');
         renderModuleSections(p, moduleData, tempContainer);
         const sections = tempContainer.querySelectorAll('.module-section');
@@ -1466,6 +1469,39 @@ requestForm?.addEventListener('submit', async (e) => {
 });
 
 syncReqTypeFields();
+
+/* ── Fees Preview (above tabs) ────────────────────── */
+function renderFeesPreview(p, moduleData) {
+  const feesArea = document.getElementById('panelFees');
+  if (!feesArea) return;
+  const fees = [];
+  if (moduleData.hoaFees?.length) {
+    moduleData.hoaFees.forEach((h) => {
+      fees.push({ label: h.association_name || 'HOA', amount: h.monthly_fee || 0, period: 'mo', status: h.status });
+    });
+  }
+  if (moduleData.insurance?.length) {
+    moduleData.insurance.forEach((ins) => {
+      if (ins.status === 'Active') fees.push({ label: ins.provider || 'Insurance', amount: ins.premium || 0, period: 'mo', status: 'Active' });
+    });
+  }
+  if (moduleData.mortgages?.length) {
+    moduleData.mortgages.forEach((m) => {
+      if (m.status === 'Active') fees.push({ label: m.lender || 'Mortgage', amount: m.monthly_payment || 0, period: 'mo', status: 'Active' });
+    });
+  }
+  if (fees.length === 0) return;
+  const totalMonthly = fees.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+  let html = `<div class="panel__fees-strip">
+    <div class="panel__fees-header"><span class="panel__cell-label" style="margin:0">Additional Fees</span><span class="panel__fees-total">$${totalMonthly.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span class="panel__tax-period">/ mo</span></span></div>
+    <div class="panel__fees-list">`;
+  fees.forEach((f) => {
+    const cls = f.status === 'Overdue' ? 'badge--danger' : f.status === 'Active' || f.status === 'Paid' || f.status === 'Current' ? 'badge--success' : 'badge--warning';
+    html += `<div class="panel__fee-row"><span>${escapeHtml(f.label)}</span><span><span class="badge ${cls}" style="font-size:9px;margin-right:4px">${f.status}</span>$${Number(f.amount).toLocaleString()}/${f.period}</span></div>`;
+  });
+  html += '</div></div>';
+  feesArea.innerHTML = html;
+}
 
 /* ── Module UI Helpers ─────────────────────────────── */
 
@@ -2330,20 +2366,32 @@ function renderModuleSections(p, moduleData, container) {
 
   // Inspections
   if (isModuleEnabled('inspections') && moduleData.inspections) {
-    const scheduled = moduleData.inspections.filter((i) => i.status === 'Scheduled' || i.status === 'Pending');
+    const all = moduleData.inspections;
+    const scheduled = all.filter((i) => i.status === 'Scheduled' || i.status === 'Pending');
     let html = `<div class="module-section"><h4 class="module-section__title">Inspections ${scheduled.length ? `<span class="badge badge--info">${scheduled.length} upcoming</span>` : ''}</h4>`;
-    if (moduleData.inspections.length > 0) {
-      html += `<div class="module-list">`;
-      moduleData.inspections.forEach((i) => {
-        const statusClass = i.status === 'Passed' ? 'success' : i.status === 'Failed' ? 'danger' : i.status === 'Scheduled' ? 'info' : 'warning';
-        html += `<div class="module-list-item ${i.status === 'Failed' ? 'module-list-item--danger' : ''}">
-          <span><strong>${escapeHtml(i.inspection_type)}</strong> ${i.inspector ? '— ' + escapeHtml(i.inspector) : ''}</span>
-          <span class="text-muted">${i.date ? new Date(i.date).toLocaleDateString() : 'Not scheduled'} ${i.notes ? '| ' + escapeHtml(i.notes) : ''}</span>
-          <span class="badge badge--${statusClass}">${i.status}</span>
-          ${isStaff() && (i.status === 'Scheduled' || i.status === 'Pending') ? `<button class="btn btn-compact pass-insp-btn" data-id="${i._id}">Pass</button><button class="btn btn-compact btn-danger fail-insp-btn" data-id="${i._id}">Fail</button>` : ''}
-        </div>`;
-      });
-      html += `</div>`;
+    if (all.length > 0) {
+      const latest = all[0];
+      const rest = all.slice(1);
+      const statusClass = latest.status === 'Passed' ? 'success' : latest.status === 'Failed' ? 'danger' : latest.status === 'Scheduled' ? 'info' : 'warning';
+      html += `<div class="module-list"><div class="module-list-item ${latest.status === 'Failed' ? 'module-list-item--danger' : ''}">
+        <span><strong>${escapeHtml(latest.inspection_type)}</strong> ${latest.inspector ? '— ' + escapeHtml(latest.inspector) : ''}</span>
+        <span class="text-muted">${latest.date ? new Date(latest.date).toLocaleDateString() : 'Not scheduled'} ${latest.notes ? '| ' + escapeHtml(latest.notes) : ''}</span>
+        <span class="badge badge--${statusClass}">${latest.status}</span>
+        ${isStaff() && (latest.status === 'Scheduled' || latest.status === 'Pending') ? `<button class="btn btn-compact pass-insp-btn" data-id="${latest._id}">Pass</button><button class="btn btn-compact btn-danger fail-insp-btn" data-id="${latest._id}">Fail</button>` : ''}
+      </div></div>`;
+      if (rest.length > 0) {
+        html += `<details class="report-history"><summary class="btn btn-compact btn-history">View History (${rest.length})</summary><div class="module-list">`;
+        rest.forEach((i) => {
+          const sc = i.status === 'Passed' ? 'success' : i.status === 'Failed' ? 'danger' : i.status === 'Scheduled' ? 'info' : 'warning';
+          html += `<div class="module-list-item ${i.status === 'Failed' ? 'module-list-item--danger' : ''}">
+            <span><strong>${escapeHtml(i.inspection_type)}</strong> ${i.inspector ? '— ' + escapeHtml(i.inspector) : ''}</span>
+            <span class="text-muted">${i.date ? new Date(i.date).toLocaleDateString() : '—'} ${i.notes ? '| ' + escapeHtml(i.notes) : ''}</span>
+            <span class="badge badge--${sc}">${i.status}</span>
+            ${isStaff() && (i.status === 'Scheduled' || i.status === 'Pending') ? `<button class="btn btn-compact pass-insp-btn" data-id="${i._id}">Pass</button><button class="btn btn-compact btn-danger fail-insp-btn" data-id="${i._id}">Fail</button>` : ''}
+          </div>`;
+        });
+        html += '</div></details>';
+      }
     } else {
       html += `<p class="module-empty">No inspections</p>`;
     }
@@ -2454,22 +2502,34 @@ function renderModuleSections(p, moduleData, container) {
 
   // Damage Reports
   if (isModuleEnabled('damage_reports') && moduleData.damageReports) {
-    const unresolved = moduleData.damageReports.filter((d) => d.status !== 'Repaired');
+    const all = moduleData.damageReports;
+    const unresolved = all.filter((d) => d.status !== 'Repaired');
     let html = `<div class="module-section"><h4 class="module-section__title">Damage Reports ${unresolved.length ? `<span class="badge badge--danger">${unresolved.length} unresolved</span>` : ''}</h4>`;
-    if (moduleData.damageReports.length > 0) {
-      html += `<div class="module-list">`;
-      moduleData.damageReports.forEach((d) => {
-        const statusClass = d.status === 'Repaired' ? 'success' : d.status === 'Under Review' ? 'warning' : 'danger';
-        const sevClass = d.severity === 'Severe' ? 'danger' : d.severity === 'Moderate' ? 'warning' : 'info';
-        html += `<div class="module-list-item ${d.severity === 'Severe' ? 'module-list-item--danger' : ''}">
-          <span><strong>${escapeHtml(d.damage_type)}</strong> ${d.estimated_cost ? '— Est. $' + Number(d.estimated_cost).toLocaleString() : ''}</span>
-          <span class="text-muted">${d.description ? escapeHtml(d.description) + ' | ' : ''}${d.date_reported ? 'Reported: ' + new Date(d.date_reported).toLocaleDateString() : ''}</span>
-          <span class="badge badge--${sevClass}">${d.severity || 'Unknown'}</span>
-          <span class="badge badge--${statusClass}">${d.status}</span>
-          ${isStaff() && d.status !== 'Repaired' ? `<button class="btn btn-compact repair-damage-btn" data-id="${d._id}">Mark Repaired</button>` : ''}
-        </div>`;
-      });
-      html += `</div>`;
+    if (all.length > 0) {
+      const latest = all[0];
+      const rest = all.slice(1);
+      const statusClass = latest.status === 'Repaired' ? 'success' : latest.status === 'Under Review' ? 'warning' : 'danger';
+      const sevClass = latest.severity === 'Severe' ? 'danger' : latest.severity === 'Moderate' ? 'warning' : 'info';
+      html += `<div class="module-list"><div class="module-list-item ${latest.severity === 'Severe' ? 'module-list-item--danger' : ''}">
+        <span><strong>${escapeHtml(latest.damage_type)}</strong> ${latest.estimated_cost ? '— Est. $' + Number(latest.estimated_cost).toLocaleString() : ''}</span>
+        <span class="text-muted">${latest.description ? escapeHtml(latest.description) + ' | ' : ''}${latest.date_reported ? 'Reported: ' + new Date(latest.date_reported).toLocaleDateString() : ''}</span>
+        <span class="badge badge--${sevClass}">${latest.severity || 'Unknown'}</span> <span class="badge badge--${statusClass}">${latest.status}</span>
+        ${isStaff() && latest.status !== 'Repaired' ? `<button class="btn btn-compact repair-damage-btn" data-id="${latest._id}">Mark Repaired</button>` : ''}
+      </div></div>`;
+      if (rest.length > 0) {
+        html += `<details class="report-history"><summary class="btn btn-compact btn-history">View History (${rest.length})</summary><div class="module-list">`;
+        rest.forEach((d) => {
+          const sc = d.status === 'Repaired' ? 'success' : d.status === 'Under Review' ? 'warning' : 'danger';
+          const sv = d.severity === 'Severe' ? 'danger' : d.severity === 'Moderate' ? 'warning' : 'info';
+          html += `<div class="module-list-item ${d.severity === 'Severe' ? 'module-list-item--danger' : ''}">
+            <span><strong>${escapeHtml(d.damage_type)}</strong> ${d.estimated_cost ? '— Est. $' + Number(d.estimated_cost).toLocaleString() : ''}</span>
+            <span class="text-muted">${d.date_reported ? new Date(d.date_reported).toLocaleDateString() : '—'}</span>
+            <span class="badge badge--${sv}">${d.severity || '?'}</span> <span class="badge badge--${sc}">${d.status}</span>
+            ${isStaff() && d.status !== 'Repaired' ? `<button class="btn btn-compact repair-damage-btn" data-id="${d._id}">Mark Repaired</button>` : ''}
+          </div>`;
+        });
+        html += '</div></details>';
+      }
     } else {
       html += `<p class="module-empty">No damage reports</p>`;
     }
@@ -3793,3 +3853,66 @@ document.getElementById('closeProximity')?.addEventListener('click', () => {
   if (proximityCircle) { map.removeLayer(proximityCircle); proximityCircle = null; }
 });
 proximityOverlay?.addEventListener('click', (e) => { if (e.target === proximityOverlay) proximityOverlay.classList.add('hidden'); });
+
+/* ── District Surveying ────────────────────────────── */
+const surveyDistrictBtn = document.getElementById('surveyDistrictBtn');
+const districtModal = document.getElementById('districtModal');
+let pendingDistrictGeoJSON = null;
+
+if (isModuleEnabled('districts') && isStaff() && user?.role === 'admin') {
+  if (surveyDistrictBtn) surveyDistrictBtn.style.display = '';
+}
+
+surveyDistrictBtn?.addEventListener('click', () => {
+  const drawnLayers = [];
+  featureGroup.eachLayer((l) => { if (l.editing) drawnLayers.push(l); });
+
+  let lastDrawn = null;
+  map.eachLayer((l) => {
+    if (l instanceof L.Polygon && !(l instanceof L.Rectangle) && !featureGroup.hasLayer(l) && l.toGeoJSON) lastDrawn = l;
+  });
+
+  if (lastDrawn) {
+    pendingDistrictGeoJSON = lastDrawn.toGeoJSON().geometry;
+    districtModal?.classList.remove('hidden');
+  } else {
+    showToast('Draw a polygon on the map first using the draw tools, then click District again', 'info');
+  }
+});
+
+document.getElementById('saveDistrictBtn')?.addEventListener('click', async () => {
+  const name = document.getElementById('districtName')?.value?.trim();
+  if (!name) { showToast('Enter a district name', 'error'); return; }
+  if (!pendingDistrictGeoJSON) { showToast('No polygon drawn', 'error'); return; }
+  try {
+    const r = await fetch('/api/modules/districts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        name,
+        description: document.getElementById('districtDesc')?.value || '',
+        color: document.getElementById('districtColor')?.value || '#3498db',
+        tax_multiplier: Number(document.getElementById('districtTaxMult')?.value) || 1.0,
+        geojson: pendingDistrictGeoJSON
+      })
+    });
+    if (r.ok) {
+      showToast(`District "${name}" created`, 'success');
+      districtModal?.classList.add('hidden');
+      pendingDistrictGeoJSON = null;
+      document.getElementById('districtName').value = '';
+      document.getElementById('districtDesc').value = '';
+      loadDistricts();
+    } else {
+      const err = await r.json().catch(() => ({}));
+      showToast(err.error || 'Failed to save district', 'error');
+    }
+  } catch { showToast('Failed to save district', 'error'); }
+});
+
+document.getElementById('closeDistrictModal')?.addEventListener('click', () => {
+  districtModal?.classList.add('hidden');
+  pendingDistrictGeoJSON = null;
+});
+districtModal?.addEventListener('click', (e) => { if (e.target === districtModal) districtModal.classList.add('hidden'); });
