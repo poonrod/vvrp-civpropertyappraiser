@@ -832,10 +832,10 @@ body.layout-map {
 
 .modal form {
   width: 100%;
-  max-width: 480px;
+  max-width: 640px;
   max-height: 90vh;
   overflow: auto;
-  padding: 24px;
+  padding: 28px 32px;
   margin: 0;
   display: grid;
   gap: 12px;
@@ -844,6 +844,42 @@ body.layout-map {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
+
+.form-modules-container {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.form-modules-container h4 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin: 0 0 10px;
+}
+.form-module-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.form-module-tab {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.form-module-tab:hover { border-color: var(--accent); color: var(--text); }
+.form-module-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+.form-module-group { display: none; }
+.form-module-group.active { display: block; }
 
 .modal form h3 {
   margin: 0 0 8px;

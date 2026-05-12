@@ -419,6 +419,8 @@ function resetFormForNew() {
   if (coOwnersList) coOwnersList.innerHTML = '';
   if (propertyTypeSelect) propertyTypeSelect.value = 'Residential';
   if (taxZoneSelect) taxZoneSelect.value = '';
+  const fmc = document.getElementById('formModulesContainer');
+  if (fmc) { fmc.innerHTML = ''; fmc.classList.add('hidden'); }
   addCoOwnerRow();
   syncOwnerFieldsVisibility();
   syncTaxRateUI(true);
@@ -606,6 +608,21 @@ async function openEditModal(propertyId) {
   fillFormFromProperty(data);
   if (markSurveyBtn) markSurveyBtn.classList.add('hidden');
   propertyModal.classList.remove('hidden');
+
+  const fmc = document.getElementById('formModulesContainer');
+  if (fmc) {
+    fmc.innerHTML = '<p class="text-muted" style="font-size:11px;">Loading modules...</p>';
+    fmc.classList.remove('hidden');
+    loadModuleData(propertyId).then((moduleData) => {
+      fmc.innerHTML = '';
+      renderModuleSections(data, moduleData, fmc);
+      if (fmc.children.length === 0) {
+        fmc.classList.add('hidden');
+      } else {
+        wrapFormModulesInTabs(fmc);
+      }
+    });
+  }
 }
 
 function renderPanel(p) {
@@ -3094,6 +3111,64 @@ requestModal?.addEventListener('click', (e) => {
     requestModal.classList.add('hidden');
   }
 });
+
+/* ── Form Module Tabs Helper ────────────────────────── */
+function wrapFormModulesInTabs(container) {
+  const sections = container.querySelectorAll('.module-section');
+  if (sections.length === 0) return;
+  const categories = {};
+  const catOrder = ['Financial', 'Legal', 'Records', 'Management', 'Other'];
+  const catMap = {
+    'Photos': 'Records', 'Liens & Warrants': 'Legal', 'Tax Ledger': 'Financial',
+    'Leases': 'Financial', 'Staff Notes': 'Records', 'Mortgages': 'Financial',
+    'Insurance': 'Financial', 'Tax Exemptions': 'Financial', 'Reminders': 'Management',
+    'HOA Fees': 'Financial', 'Foreclosure': 'Legal', 'Zoning Permits': 'Legal',
+    'Code Enforcement': 'Legal', 'Inspections': 'Records', 'Improvements': 'Records',
+    'Damage Reports': 'Records', 'Utilities': 'Management', 'Environmental': 'Records',
+    'Landmark': 'Records', 'Access List': 'Management', 'Parking': 'Management',
+    'Property Disputes': 'Legal', 'Eminent Domain': 'Legal', 'Auctions': 'Financial'
+  };
+  sections.forEach(sec => {
+    const title = sec.querySelector('.module-section__title')?.textContent?.replace(/\d+/g, '').trim() || '';
+    let cat = 'Other';
+    for (const [key, val] of Object.entries(catMap)) {
+      if (title.toLowerCase().includes(key.toLowerCase())) { cat = val; break; }
+    }
+    if (!categories[cat]) categories[cat] = [];
+    categories[cat].push(sec);
+  });
+  const heading = document.createElement('h4');
+  heading.textContent = 'Modules';
+  container.innerHTML = '';
+  container.appendChild(heading);
+  const tabBar = document.createElement('div');
+  tabBar.className = 'form-module-tabs';
+  container.appendChild(tabBar);
+  let first = true;
+  catOrder.forEach(cat => {
+    if (!categories[cat] || categories[cat].length === 0) return;
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'form-module-tab' + (first ? ' active' : '');
+    tab.textContent = cat;
+    tab.dataset.cat = cat;
+    tabBar.appendChild(tab);
+    const group = document.createElement('div');
+    group.className = 'form-module-group' + (first ? ' active' : '');
+    group.dataset.cat = cat;
+    categories[cat].forEach(sec => group.appendChild(sec));
+    container.appendChild(group);
+    first = false;
+  });
+  tabBar.addEventListener('click', e => {
+    const btn = e.target.closest('.form-module-tab');
+    if (!btn) return;
+    tabBar.querySelectorAll('.form-module-tab').forEach(t => t.classList.remove('active'));
+    container.querySelectorAll('.form-module-group').forEach(g => g.classList.remove('active'));
+    btn.classList.add('active');
+    container.querySelector(`.form-module-group[data-cat="${btn.dataset.cat}"]`)?.classList.add('active');
+  });
+}
 
 /* ── Map Module Layers ─────────────────────────────── */
 let heatLayer = null;
