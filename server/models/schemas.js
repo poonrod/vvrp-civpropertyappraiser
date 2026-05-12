@@ -432,6 +432,205 @@ const hoaFeeSchema = new Schema(
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
 
+/* ── Module: foreclosures ──────────────────────────── */
+const foreclosureSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    stage: { type: String, enum: ['Tax Delinquent', 'Warning', 'Foreclosed'], default: 'Tax Delinquent' },
+    grace_period_days: { type: Number, default: 30 },
+    initiated_at: { type: Date },
+    foreclosed_at: { type: Date, default: null },
+    notes: { type: String, default: '' },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: zoning_permits ────────────────────────── */
+const zoningPermitSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    current_zone: { type: String },
+    requested_zone: { type: String },
+    reason: { type: String, default: '' },
+    status: { type: String, enum: ['Pending', 'Approved', 'Denied'], default: 'Pending' },
+    violations: [
+      {
+        description: { type: String },
+        fine: { type: Number },
+        status: { type: String, enum: ['Open', 'Resolved'] },
+        issued_at: { type: Date }
+      }
+    ],
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: eminent_domain ────────────────────────── */
+const eminentDomainSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    reason: { type: String, required: true },
+    offered_amount: { type: Number, default: 0 },
+    stage: { type: String, enum: ['Proposal', 'Public Comment', 'Council Vote', 'Acquired', 'Rejected'], default: 'Proposal' },
+    vote_yes: { type: Number, default: 0 },
+    vote_no: { type: Number, default: 0 },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: code_enforcement ──────────────────────── */
+const codeEnforcementSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    violation_type: { type: String, required: true },
+    description: { type: String, default: '' },
+    fine_amount: { type: Number, default: 0 },
+    fine_escalation: { type: Number, default: 0 },
+    status: { type: String, enum: ['Issued', 'Appealed', 'Resolved', 'Fined'], default: 'Issued' },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: access_list ───────────────────────────── */
+const accessListSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    entries: [
+      {
+        name: { type: String },
+        role: { type: String, enum: ['Owner', 'Tenant', 'Employee', 'Guest'] },
+        granted_at: { type: Date }
+      }
+    ],
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: parking ───────────────────────────────── */
+const parkingSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    total_spaces: { type: Number, default: 0 },
+    garage_capacity: { type: Number, default: 0 },
+    vehicles: [
+      {
+        plate: { type: String },
+        make: { type: String },
+        model: { type: String },
+        owner_name: { type: String },
+        assigned_space: { type: Number }
+      }
+    ],
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: inspections ───────────────────────────── */
+const inspectionSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    inspector: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    condition_rating: { type: Number, min: 1, max: 10, required: true },
+    structural_issues: { type: String, default: '' },
+    code_compliant: { type: Boolean, default: true },
+    notes: { type: String, default: '' },
+    next_inspection_date: { type: Date, default: null }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: improvements ──────────────────────────── */
+const improvementSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
+    estimated_cost: { type: Number, default: 0 },
+    value_increase: { type: Number, default: 0 },
+    status: { type: String, enum: ['Requested', 'Approved', 'In Progress', 'Completed', 'Denied'], default: 'Requested' },
+    approved_by: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: damage_reports ────────────────────────── */
+const damageReportSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    damage_type: { type: String, enum: ['Fire', 'Flood', 'Vandalism', 'Storm', 'Structural', 'Other'], required: true },
+    severity: { type: Number, min: 1, max: 10, default: 5 },
+    description: { type: String, default: '' },
+    repair_cost_estimate: { type: Number, default: 0 },
+    insured: { type: Boolean, default: false },
+    repaired: { type: Boolean, default: false },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: utility_connections ───────────────────── */
+const utilityConnectionSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    utility_type: { type: String, enum: ['Water', 'Electric', 'Gas', 'Internet', 'Sewer'], required: true },
+    provider_name: { type: String, default: '' },
+    status: { type: String, enum: ['Connected', 'Disconnected', 'Pending'], default: 'Connected' },
+    monthly_cost: { type: Number, default: 0 },
+    account_number: { type: String, default: '' },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: environmental_hazards ─────────────────── */
+const environmentalHazardSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    hazard_type: { type: String, enum: ['Flood Zone', 'Hazmat', 'Asbestos', 'Noise Zone', 'Contamination', 'Other'], required: true },
+    severity: { type: String, enum: ['Low', 'Medium', 'High', 'Critical'], default: 'Medium' },
+    description: { type: String, default: '' },
+    value_multiplier: { type: Number, default: 1.0 },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: landmarks ─────────────────────────────── */
+const landmarkSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    designation_name: { type: String, required: true },
+    designation_date: { type: Date },
+    description: { type: String, default: '' },
+    restrictions: { type: String, default: 'Cannot be demolished or significantly altered' },
+    tax_incentive_percent: { type: Number, default: 0 },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
+/* ── Module: property_disputes ─────────────────────── */
+const propertyDisputeSchema = new Schema(
+  {
+    property_id: { type: Schema.Types.ObjectId, ref: 'Property', required: true, index: true },
+    filed_by: { type: String, required: true },
+    dispute_type: { type: String, enum: ['Boundary', 'Valuation', 'Ownership', 'Other'], required: true },
+    description: { type: String, required: true },
+    status: { type: String, enum: ['Filed', 'Under Review', 'Mediation', 'Resolved', 'Dismissed'], default: 'Filed' },
+    resolution: { type: String, default: '' },
+    assigned_to: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    created_by: { type: Schema.Types.ObjectId, ref: 'User', default: null }
+  },
+  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
+);
+
 const BusinessModel = mongoose.models.Business || mongoose.model('Business', businessSchema);
 BusinessModel.syncIndexes().catch((e) => console.error('[Business] syncIndexes:', e.message));
 
@@ -465,5 +664,18 @@ module.exports = {
   StaffMetric: mongoose.models.StaffMetric || mongoose.model('StaffMetric', staffMetricSchema),
   SeasonalEvent: mongoose.models.SeasonalEvent || mongoose.model('SeasonalEvent', seasonalEventSchema),
   SavedView: mongoose.models.SavedView || mongoose.model('SavedView', savedViewSchema),
-  HoaFee: mongoose.models.HoaFee || mongoose.model('HoaFee', hoaFeeSchema)
+  HoaFee: mongoose.models.HoaFee || mongoose.model('HoaFee', hoaFeeSchema),
+  Foreclosure: mongoose.models.Foreclosure || mongoose.model('Foreclosure', foreclosureSchema),
+  ZoningPermit: mongoose.models.ZoningPermit || mongoose.model('ZoningPermit', zoningPermitSchema),
+  EminentDomain: mongoose.models.EminentDomain || mongoose.model('EminentDomain', eminentDomainSchema),
+  CodeEnforcement: mongoose.models.CodeEnforcement || mongoose.model('CodeEnforcement', codeEnforcementSchema),
+  AccessList: mongoose.models.AccessList || mongoose.model('AccessList', accessListSchema),
+  Parking: mongoose.models.Parking || mongoose.model('Parking', parkingSchema),
+  Inspection: mongoose.models.Inspection || mongoose.model('Inspection', inspectionSchema),
+  Improvement: mongoose.models.Improvement || mongoose.model('Improvement', improvementSchema),
+  DamageReport: mongoose.models.DamageReport || mongoose.model('DamageReport', damageReportSchema),
+  UtilityConnection: mongoose.models.UtilityConnection || mongoose.model('UtilityConnection', utilityConnectionSchema),
+  EnvironmentalHazard: mongoose.models.EnvironmentalHazard || mongoose.model('EnvironmentalHazard', environmentalHazardSchema),
+  Landmark: mongoose.models.Landmark || mongoose.model('Landmark', landmarkSchema),
+  PropertyDispute: mongoose.models.PropertyDispute || mongoose.model('PropertyDispute', propertyDisputeSchema)
 };

@@ -9,7 +9,11 @@ const {
   TaxExemption, ValuationCycle, Property,
   MapAnnotation, District, PropertyTransaction,
   WebhookEndpoint, Reminder, AuditLog,
-  StaffMetric, SeasonalEvent, SavedView, HoaFee, User
+  StaffMetric, SeasonalEvent, SavedView, HoaFee, User,
+  Foreclosure, ZoningPermit, EminentDomain, CodeEnforcement,
+  AccessList, Parking, Inspection, Improvement, DamageReport,
+  UtilityConnection, EnvironmentalHazard, Landmark, PropertyDispute,
+  TaxPreset
 } = require('../models/schemas');
 
 const router = express.Router();
@@ -954,6 +958,704 @@ router.patch('/hoa/:id', requireAuth, requireRole(...STAFF), requireModule('hoa_
     const fee = await HoaFee.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!fee) return res.status(404).json({ error: 'HOA fee not found' });
     res.json(fee);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: foreclosure -- Property Foreclosures
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/foreclosure', requireModule('foreclosure'), async (req, res) => {
+  try {
+    const records = await Foreclosure.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(records);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/foreclosure', requireAuth, requireRole(...STAFF), requireModule('foreclosure'), async (req, res) => {
+  try {
+    const record = await Foreclosure.create({
+      property_id: req.params.id,
+      reason: req.body.reason || '',
+      amount_owed: Number(req.body.amount_owed) || 0,
+      initiated_by: req.session.user.id
+    });
+    res.status(201).json(record);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/foreclosure/:id', requireAuth, requireRole(...STAFF), requireModule('foreclosure'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.stage) update.stage = req.body.stage;
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    const record = await Foreclosure.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!record) return res.status(404).json({ error: 'Foreclosure not found' });
+    res.json(record);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: zoning_permits -- Zoning Permits & Violations
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/zoning', requireModule('zoning_permits'), async (req, res) => {
+  try {
+    const permits = await ZoningPermit.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(permits);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/zoning', requireAuth, requireRole(...STAFF), requireModule('zoning_permits'), async (req, res) => {
+  try {
+    const permit = await ZoningPermit.create({
+      property_id: req.params.id,
+      permit_type: req.body.permit_type,
+      description: req.body.description || '',
+      requested_zone: req.body.requested_zone || '',
+      created_by: req.session.user.id
+    });
+    res.status(201).json(permit);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/zoning/:id', requireAuth, requireRole(...STAFF), requireModule('zoning_permits'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    const permit = await ZoningPermit.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!permit) return res.status(404).json({ error: 'Zoning permit not found' });
+    res.json(permit);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/zoning/:id/violations', requireAuth, requireRole(...STAFF), requireModule('zoning_permits'), async (req, res) => {
+  try {
+    const permit = await ZoningPermit.findById(req.params.id);
+    if (!permit) return res.status(404).json({ error: 'Zoning permit not found' });
+    const violation = {
+      description: req.body.description,
+      severity: req.body.severity || 'Minor',
+      reported_by: req.session.user.id,
+      reported_at: new Date()
+    };
+    permit.violations = permit.violations || [];
+    permit.violations.push(violation);
+    await permit.save();
+    res.status(201).json(permit);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: eminent_domain -- Eminent Domain Cases
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/eminent-domain', requireModule('eminent_domain'), async (req, res) => {
+  try {
+    const cases = await EminentDomain.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(cases);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/eminent-domain', requireAuth, requireRole('admin'), requireModule('eminent_domain'), async (req, res) => {
+  try {
+    const edCase = await EminentDomain.create({
+      property_id: req.params.id,
+      reason: req.body.reason,
+      offering_price: Number(req.body.offering_price) || 0,
+      initiated_by: req.session.user.id
+    });
+    res.status(201).json(edCase);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/eminent-domain/:id', requireAuth, requireRole('admin'), requireModule('eminent_domain'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.stage) update.stage = req.body.stage;
+    if (req.body.votes != null) update.votes = req.body.votes;
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    const edCase = await EminentDomain.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!edCase) return res.status(404).json({ error: 'Eminent domain case not found' });
+    res.json(edCase);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: code_enforcement -- Code Enforcement Citations
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/citations', requireModule('code_enforcement'), async (req, res) => {
+  try {
+    const citations = await CodeEnforcement.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(citations);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/citations', requireAuth, requireRole(...STAFF), requireModule('code_enforcement'), async (req, res) => {
+  try {
+    const citation = await CodeEnforcement.create({
+      property_id: req.params.id,
+      violation_type: req.body.violation_type,
+      description: req.body.description || '',
+      fine_amount: Number(req.body.fine_amount) || 0,
+      issued_by: req.session.user.id
+    });
+    res.status(201).json(citation);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/citations/:id', requireAuth, requireRole(...STAFF), requireModule('code_enforcement'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    const citation = await CodeEnforcement.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!citation) return res.status(404).json({ error: 'Citation not found' });
+    res.json(citation);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: access_lists -- Property Access Lists
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/access-list', requireModule('access_lists'), async (req, res) => {
+  try {
+    const list = await AccessList.findOne({ property_id: req.params.id }).lean();
+    res.json(list || { property_id: req.params.id, entries: [] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/access-list', requireAuth, requireRole(...STAFF), requireModule('access_lists'), async (req, res) => {
+  try {
+    const list = await AccessList.findOneAndUpdate(
+      { property_id: req.params.id },
+      { property_id: req.params.id, entries: req.body.entries || [], updated_by: req.session.user.id },
+      { new: true, upsert: true }
+    );
+    res.status(201).json(list);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/access-list/:id/entries', requireAuth, requireRole(...STAFF), requireModule('access_lists'), async (req, res) => {
+  try {
+    const list = await AccessList.findById(req.params.id);
+    if (!list) return res.status(404).json({ error: 'Access list not found' });
+    const entry = {
+      name: req.body.name,
+      role: req.body.role || 'Guest',
+      added_by: req.session.user.id,
+      added_at: new Date()
+    };
+    list.entries = list.entries || [];
+    list.entries.push(entry);
+    await list.save();
+    res.status(201).json(list);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: parking -- Property Parking Management
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/parking', requireModule('parking'), async (req, res) => {
+  try {
+    const parking = await Parking.findOne({ property_id: req.params.id }).lean();
+    res.json(parking || { property_id: req.params.id, spaces: 0, vehicles: [] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/parking', requireAuth, requireRole(...STAFF), requireModule('parking'), async (req, res) => {
+  try {
+    const parking = await Parking.create({
+      property_id: req.params.id,
+      spaces: Number(req.body.spaces) || 0,
+      capacity: Number(req.body.capacity) || 0,
+      type: req.body.type || 'Standard',
+      created_by: req.session.user.id
+    });
+    res.status(201).json(parking);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/parking/:id', requireAuth, requireRole(...STAFF), requireModule('parking'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.spaces != null) update.spaces = Number(req.body.spaces);
+    if (req.body.capacity != null) update.capacity = Number(req.body.capacity);
+    if (req.body.type) update.type = req.body.type;
+    const parking = await Parking.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!parking) return res.status(404).json({ error: 'Parking record not found' });
+    res.json(parking);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/parking/:id/vehicles', requireAuth, requireRole(...STAFF), requireModule('parking'), async (req, res) => {
+  try {
+    const parking = await Parking.findById(req.params.id);
+    if (!parking) return res.status(404).json({ error: 'Parking record not found' });
+    const vehicle = {
+      plate: req.body.plate,
+      owner_name: req.body.owner_name || '',
+      model: req.body.model || '',
+      added_by: req.session.user.id,
+      added_at: new Date()
+    };
+    parking.vehicles = parking.vehicles || [];
+    parking.vehicles.push(vehicle);
+    await parking.save();
+    res.status(201).json(parking);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: inspections -- Property Inspections
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/inspections', requireModule('inspections'), async (req, res) => {
+  try {
+    const inspections = await Inspection.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(inspections);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/inspections', requireAuth, requireRole(...STAFF), requireModule('inspections'), async (req, res) => {
+  try {
+    const inspection = await Inspection.create({
+      property_id: req.params.id,
+      inspection_type: req.body.inspection_type,
+      description: req.body.description || '',
+      scheduled_date: req.body.scheduled_date || null,
+      inspector: req.session.user.id
+    });
+    res.status(201).json(inspection);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/inspections/:id', requireAuth, requireRole(...STAFF), requireModule('inspections'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.result) update.result = req.body.result;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    if (req.body.completed_at) update.completed_at = req.body.completed_at;
+    const inspection = await Inspection.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!inspection) return res.status(404).json({ error: 'Inspection not found' });
+    res.json(inspection);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: improvements -- Property Improvements
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/improvements', requireModule('improvements'), async (req, res) => {
+  try {
+    const improvements = await Improvement.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(improvements);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/improvements', requireAuth, requireRole(...STAFF), requireModule('improvements'), async (req, res) => {
+  try {
+    const improvement = await Improvement.create({
+      property_id: req.params.id,
+      title: req.body.title,
+      description: req.body.description || '',
+      estimated_cost: Number(req.body.estimated_cost) || 0,
+      requested_by: req.session.user.id
+    });
+    res.status(201).json(improvement);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/improvements/:id', requireAuth, requireRole(...STAFF), requireModule('improvements'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    if (req.body.actual_cost != null) update.actual_cost = Number(req.body.actual_cost);
+    if (req.body.status === 'Approved') update.approved_by = req.session.user.id;
+    const improvement = await Improvement.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!improvement) return res.status(404).json({ error: 'Improvement not found' });
+    res.json(improvement);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: damage_reports -- Property Damage Reports
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/damage-reports', requireModule('damage_reports'), async (req, res) => {
+  try {
+    const reports = await DamageReport.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(reports);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/damage-reports', requireAuth, requireRole(...STAFF), requireModule('damage_reports'), async (req, res) => {
+  try {
+    const report = await DamageReport.create({
+      property_id: req.params.id,
+      damage_type: req.body.damage_type,
+      description: req.body.description || '',
+      severity: req.body.severity || 'Moderate',
+      estimated_repair_cost: Number(req.body.estimated_repair_cost) || 0,
+      reported_by: req.session.user.id
+    });
+    res.status(201).json(report);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/damage-reports/:id', requireAuth, requireRole(...STAFF), requireModule('damage_reports'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.repaired != null) update.repaired = req.body.repaired;
+    if (req.body.repaired_at) update.repaired_at = req.body.repaired_at;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    if (req.body.status) update.status = req.body.status;
+    const report = await DamageReport.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!report) return res.status(404).json({ error: 'Damage report not found' });
+    res.json(report);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: utilities -- Utility Connections
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/utilities', requireModule('utilities'), async (req, res) => {
+  try {
+    const connections = await UtilityConnection.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(connections);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/utilities', requireAuth, requireRole(...STAFF), requireModule('utilities'), async (req, res) => {
+  try {
+    const connection = await UtilityConnection.create({
+      property_id: req.params.id,
+      utility_type: req.body.utility_type,
+      provider: req.body.provider || '',
+      account_number: req.body.account_number || '',
+      monthly_cost: Number(req.body.monthly_cost) || 0,
+      created_by: req.session.user.id
+    });
+    res.status(201).json(connection);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/utilities/:id', requireAuth, requireRole(...STAFF), requireModule('utilities'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.monthly_cost != null) update.monthly_cost = Number(req.body.monthly_cost);
+    if (req.body.provider) update.provider = req.body.provider;
+    const connection = await UtilityConnection.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!connection) return res.status(404).json({ error: 'Utility connection not found' });
+    res.json(connection);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: environmental -- Environmental Hazards
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/environmental', requireModule('environmental'), async (req, res) => {
+  try {
+    const hazards = await EnvironmentalHazard.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(hazards);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/environmental', requireAuth, requireRole(...STAFF), requireModule('environmental'), async (req, res) => {
+  try {
+    const hazard = await EnvironmentalHazard.create({
+      property_id: req.params.id,
+      hazard_type: req.body.hazard_type,
+      description: req.body.description || '',
+      severity: req.body.severity || 'Moderate',
+      flagged_by: req.session.user.id
+    });
+    res.status(201).json(hazard);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/environmental/:id', requireAuth, requireRole(...STAFF), requireModule('environmental'), async (req, res) => {
+  try {
+    const hazard = await EnvironmentalHazard.findByIdAndDelete(req.params.id);
+    if (!hazard) return res.status(404).json({ error: 'Hazard not found' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: landmarks -- Landmark Designations
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/landmark', requireModule('landmarks'), async (req, res) => {
+  try {
+    const landmark = await Landmark.findOne({ property_id: req.params.id }).lean();
+    res.json(landmark || null);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/landmark', requireAuth, requireRole('admin'), requireModule('landmarks'), async (req, res) => {
+  try {
+    const landmark = await Landmark.create({
+      property_id: req.params.id,
+      designation: req.body.designation,
+      description: req.body.description || '',
+      designated_by: req.session.user.id
+    });
+    res.status(201).json(landmark);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/landmarks/:id', requireAuth, requireRole('admin'), requireModule('landmarks'), async (req, res) => {
+  try {
+    const landmark = await Landmark.findByIdAndDelete(req.params.id);
+    if (!landmark) return res.status(404).json({ error: 'Landmark not found' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: property_disputes -- Property Disputes
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/disputes', requireModule('property_disputes'), async (req, res) => {
+  try {
+    const disputes = await PropertyDispute.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    res.json(disputes);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/:id/disputes', requireModule('property_disputes'), async (req, res) => {
+  try {
+    const dispute = await PropertyDispute.create({
+      property_id: req.params.id,
+      disputant_name: req.body.disputant_name,
+      dispute_type: req.body.dispute_type,
+      description: req.body.description || '',
+      contact_info: req.body.contact_info || ''
+    });
+    res.status(201).json(dispute);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/disputes/:id', requireAuth, requireRole(...STAFF), requireModule('property_disputes'), async (req, res) => {
+  try {
+    const update = {};
+    if (req.body.status) update.status = req.body.status;
+    if (req.body.resolution) update.resolution = req.body.resolution;
+    if (req.body.assigned_to) update.assigned_to = req.body.assigned_to;
+    if (req.body.notes != null) update.notes = req.body.notes;
+    const dispute = await PropertyDispute.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!dispute) return res.status(404).json({ error: 'Dispute not found' });
+    res.json(dispute);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: public_portal -- Public Property Portal
+   ═══════════════════════════════════════════════════ */
+router.get('/public-properties', requireModule('public_portal'), async (req, res) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (req.query.search) {
+      const search = { $regex: req.query.search, $options: 'i' };
+      filter.$or = [{ name: search }, { address: search }, { parcel_id: search }, { owner_name: search }];
+    }
+    if (req.query.type) filter.type = req.query.type;
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.zone) filter.tax_zone = req.query.zone;
+
+    const total = await Property.countDocuments(filter);
+    const properties = await Property.find(filter, 'name parcel_id address type status tax_zone owner_name assessed_value square_footage')
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.json({ properties, total, page, pages: Math.ceil(total / limit) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: for_sale_listings -- For Sale Listings
+   ═══════════════════════════════════════════════════ */
+router.get('/for-sale', requireModule('for_sale_listings'), async (_req, res) => {
+  try {
+    const properties = await Property.find({ status: 'For Sale' }, 'name parcel_id address type purchase_price assessed_value square_footage').lean();
+    res.json(properties);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: tax_calculator -- Tax Estimation Calculator
+   ═══════════════════════════════════════════════════ */
+router.get('/tax-calculator/estimate', requireModule('tax_calculator'), async (req, res) => {
+  try {
+    const value = Number(req.query.value) || 0;
+    const type = req.query.type || '';
+    const zone = req.query.zone || '';
+
+    const presets = await TaxPreset.find().lean();
+    let rate = 0.01;
+    const matched = presets.find((p) => p.zone === zone || p.name === zone);
+    if (matched) rate = Number(matched.rate) || 0.01;
+
+    const annual_tax = value * rate;
+    res.json({
+      assessed_value: value,
+      type,
+      zone,
+      rate,
+      annual_tax: Math.round(annual_tax * 100) / 100,
+      formula: `${value} × ${rate} = ${Math.round(annual_tax * 100) / 100}`
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: split_merge -- Property Split & Merge
+   ═══════════════════════════════════════════════════ */
+router.post('/properties/:id/split', requireAuth, requireRole('admin'), requireModule('split_merge'), async (req, res) => {
+  try {
+    const original = await Property.findById(req.params.id);
+    if (!original) return res.status(404).json({ error: 'Property not found' });
+
+    const dividing_line = req.body.dividing_line;
+    const base = original.toObject();
+    delete base._id;
+    delete base.__v;
+
+    const idA = `${original.parcel_id}-A`;
+    const idB = `${original.parcel_id}-B`;
+
+    const propA = await Property.create({
+      ...base,
+      parcel_id: idA,
+      name: `${original.name} (A)`,
+      split_from: original._id,
+      dividing_line
+    });
+    const propB = await Property.create({
+      ...base,
+      parcel_id: idB,
+      name: `${original.name} (B)`,
+      split_from: original._id,
+      dividing_line
+    });
+
+    await Property.findByIdAndDelete(original._id);
+    res.status(201).json({ original_id: original._id, new_properties: [propA, propB] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/properties/merge', requireAuth, requireRole('admin'), requireModule('split_merge'), async (req, res) => {
+  try {
+    const { property_ids } = req.body;
+    if (!property_ids || property_ids.length !== 2) {
+      return res.status(400).json({ error: 'Exactly 2 property_ids required' });
+    }
+
+    const propA = await Property.findById(property_ids[0]);
+    const propB = await Property.findById(property_ids[1]);
+    if (!propA || !propB) return res.status(404).json({ error: 'One or both properties not found' });
+
+    const merged = await Property.create({
+      name: `${propA.name} + ${propB.name}`,
+      parcel_id: `${propA.parcel_id}-M`,
+      address: propA.address,
+      type: propA.type,
+      owner_name: propA.owner_name,
+      assessed_value: (Number(propA.assessed_value) || 0) + (Number(propB.assessed_value) || 0),
+      square_footage: (Number(propA.square_footage) || 0) + (Number(propB.square_footage) || 0),
+      merged_from: [propA._id, propB._id]
+    });
+
+    await Property.findByIdAndDelete(propA._id);
+    await Property.findByIdAndDelete(propB._id);
+    res.status(201).json({ merged_property: merged, deleted_ids: [propA._id, propB._id] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: proximity -- Proximity Search
+   ═══════════════════════════════════════════════════ */
+router.get('/properties/:id/nearby', requireModule('proximity'), async (req, res) => {
+  try {
+    const radius = Number(req.query.radius) || 500;
+    const target = await Property.findById(req.params.id, 'geojson').lean();
+    if (!target || !target.geojson?.coordinates?.[0]) {
+      return res.status(400).json({ error: 'Property has no geometry' });
+    }
+
+    const ring = target.geojson.coordinates[0];
+    const centroidLat = ring.reduce((s, c) => s + c[1], 0) / ring.length;
+    const centroidLng = ring.reduce((s, c) => s + c[0], 0) / ring.length;
+
+    const props = await Property.find({ _id: { $ne: req.params.id } }, 'name parcel_id address type geojson assessed_value').lean();
+    const nearby = [];
+
+    for (const p of props) {
+      if (!p.geojson?.coordinates?.[0]) continue;
+      const pRing = p.geojson.coordinates[0];
+      const pLat = pRing.reduce((s, c) => s + c[1], 0) / pRing.length;
+      const pLng = pRing.reduce((s, c) => s + c[0], 0) / pRing.length;
+      const dist = Math.sqrt(Math.pow(pLat - centroidLat, 2) + Math.pow(pLng - centroidLng, 2));
+      if (dist <= radius) {
+        nearby.push({ ...p, distance: Math.round(dist * 100) / 100 });
+      }
+    }
+
+    nearby.sort((a, b) => a.distance - b.distance);
+    res.json(nearby);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ═══════════════════════════════════════════════════
+   MODULE: discord_bot -- Discord Bot Endpoints
+   ═══════════════════════════════════════════════════ */
+router.get('/discord/lookup', requireModule('discord_bot'), async (req, res) => {
+  try {
+    const { parcel_id } = req.query;
+    if (!parcel_id) return res.status(400).json({ error: 'parcel_id required' });
+    const property = await Property.findOne({ parcel_id }).lean();
+    if (!property) return res.status(404).json({ error: 'Property not found' });
+    res.json(property);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/discord/owner', requireModule('discord_bot'), async (req, res) => {
+  try {
+    const { name } = req.query;
+    if (!name) return res.status(400).json({ error: 'name required' });
+    const properties = await Property.find({
+      $or: [
+        { owner_name: { $regex: name, $options: 'i' } },
+        { 'residential_owners.name': { $regex: name, $options: 'i' } }
+      ]
+    }).lean();
+    res.json(properties);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/discord/tax-owed', requireModule('discord_bot'), async (req, res) => {
+  try {
+    const { parcel_id } = req.query;
+    if (!parcel_id) return res.status(400).json({ error: 'parcel_id required' });
+    const property = await Property.findOne({ parcel_id }).lean();
+    if (!property) return res.status(404).json({ error: 'Property not found' });
+
+    let tax_info = { parcel_id: property.parcel_id, name: property.name, annual_tax: property.annual_tax || 0 };
+    try {
+      const bills = await TaxBill.find({ property_id: property._id, status: { $ne: 'Paid' } }).lean();
+      if (bills.length > 0) {
+        const total_owed = bills.reduce((sum, b) => sum + ((b.amount_due || 0) - (b.amount_paid || 0)), 0);
+        tax_info.outstanding_bills = bills.length;
+        tax_info.total_owed = total_owed;
+      }
+    } catch { /* tax_ledger module may not be enabled */ }
+
+    res.json(tax_info);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

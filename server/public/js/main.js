@@ -1433,6 +1433,96 @@ async function loadModuleData(propertyId) {
         .then((r) => r.ok ? r.json() : []).then((d) => { data.insurance = d; }).catch(() => { data.insurance = []; })
     );
   }
+  if (isModuleEnabled('tax_exemptions')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/exemptions`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.exemptions = d; }).catch(() => { data.exemptions = []; })
+    );
+  }
+  if (isModuleEnabled('reminders') && isStaff()) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/reminders`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.reminders = d; }).catch(() => { data.reminders = []; })
+    );
+  }
+  if (isModuleEnabled('hoa_fees')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/hoa`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.hoaFees = d; }).catch(() => { data.hoaFees = []; })
+    );
+  }
+  if (isModuleEnabled('foreclosure')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/foreclosure`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.foreclosure = d; }).catch(() => { data.foreclosure = []; })
+    );
+  }
+  if (isModuleEnabled('zoning_permits')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/zoning`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.zoningPermits = d; }).catch(() => { data.zoningPermits = []; })
+    );
+  }
+  if (isModuleEnabled('code_enforcement')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/citations`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.citations = d; }).catch(() => { data.citations = []; })
+    );
+  }
+  if (isModuleEnabled('inspections')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/inspections`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.inspections = d; }).catch(() => { data.inspections = []; })
+    );
+  }
+  if (isModuleEnabled('improvements')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/improvements`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.improvements = d; }).catch(() => { data.improvements = []; })
+    );
+  }
+  if (isModuleEnabled('damage_reports')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/damage-reports`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.damageReports = d; }).catch(() => { data.damageReports = []; })
+    );
+  }
+  if (isModuleEnabled('utilities')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/utilities`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.utilities = d; }).catch(() => { data.utilities = []; })
+    );
+  }
+  if (isModuleEnabled('environmental')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/environmental`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.environmental = d; }).catch(() => { data.environmental = []; })
+    );
+  }
+  if (isModuleEnabled('landmarks')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/landmark`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.landmark = d; }).catch(() => { data.landmark = []; })
+    );
+  }
+  if (isModuleEnabled('access_lists')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/access-list`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.accessList = d; }).catch(() => { data.accessList = []; })
+    );
+  }
+  if (isModuleEnabled('parking')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/parking`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.parking = d; }).catch(() => { data.parking = []; })
+    );
+  }
+  if (isModuleEnabled('property_disputes')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/disputes`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.disputes = d; }).catch(() => { data.disputes = []; })
+    );
+  }
 
   await Promise.all(fetches);
   return data;
@@ -1787,6 +1877,900 @@ function renderModuleSections(p, moduleData, container) {
       if (r.ok) { showToast('Policy added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
     });
   }
+
+  // Tax Exemptions
+  if (isModuleEnabled('tax_exemptions') && moduleData.exemptions) {
+    const active = moduleData.exemptions.filter((e) => e.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Tax Exemptions ${active.length ? `<span class="badge badge--success">${active.length} active</span>` : ''}</h4>`;
+    if (moduleData.exemptions.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.exemptions.forEach((e) => {
+        const statusClass = e.status === 'Active' ? 'success' : e.status === 'Pending' ? 'warning' : 'danger';
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(e.exemption_type)}</strong> — ${e.percentage != null ? e.percentage + '%' : '$' + Number(e.amount || 0).toLocaleString()}</span>
+          <span class="text-muted">${e.start_date ? new Date(e.start_date).toLocaleDateString() : ''} ${e.end_date ? '→ ' + new Date(e.end_date).toLocaleDateString() : '(ongoing)'}</span>
+          <span class="badge badge--${statusClass}">${e.status}</span>
+          ${isStaff() && e.status === 'Active' ? `<button class="btn btn-compact revoke-exemption-btn" data-id="${e._id}">Revoke</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No exemptions</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Exemption</summary>
+        <div class="module-form-body">
+          <select class="exemp-type-select"><option>Homestead</option><option>Senior Citizen</option><option>Veteran</option><option>Disability</option><option>Agricultural</option><option>Religious</option><option>Other</option></select>
+          <input type="number" class="exemp-pct-input" placeholder="Percentage (%)" step="0.01" />
+          <input type="number" class="exemp-amt-input" placeholder="Or flat amount ($)" step="0.01" />
+          <input type="date" class="exemp-start-input" />
+          <input type="date" class="exemp-end-input" />
+          <input type="text" class="exemp-desc-input" placeholder="Description" />
+          <button class="btn btn-compact btn-primary add-exemption-btn" data-property="${p.id}">Add Exemption</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.revoke-exemption-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/exemptions/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Revoked' })
+        });
+        if (r.ok) { showToast('Exemption revoked', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-exemption-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.exemp-type-select')?.value;
+      const pct = container.querySelector('.exemp-pct-input')?.value;
+      const amt = container.querySelector('.exemp-amt-input')?.value;
+      const start = container.querySelector('.exemp-start-input')?.value;
+      const end = container.querySelector('.exemp-end-input')?.value;
+      const desc = container.querySelector('.exemp-desc-input')?.value;
+      if (!type) { showToast('Select exemption type', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/exemptions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ exemption_type: type, percentage: pct || null, amount: amt || null, start_date: start || null, end_date: end || null, description: desc })
+      });
+      if (r.ok) { showToast('Exemption added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Reminders (staff only)
+  if (isModuleEnabled('reminders') && isStaff() && moduleData.reminders) {
+    const pending = moduleData.reminders.filter((r) => r.status === 'Pending' || r.status === 'Overdue');
+    let html = `<div class="module-section"><h4 class="module-section__title">Reminders ${pending.length ? `<span class="badge badge--warning">${pending.length}</span>` : ''}</h4>`;
+    if (moduleData.reminders.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.reminders.forEach((r) => {
+        const statusClass = r.status === 'Completed' ? 'success' : r.status === 'Overdue' ? 'danger' : 'warning';
+        html += `<div class="module-list-item ${r.status === 'Overdue' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(r.title)}</strong></span>
+          <span class="text-muted">Due: ${r.due_date ? new Date(r.due_date).toLocaleDateString() : 'N/A'} ${r.created_by ? '| By: ' + escapeHtml(r.created_by) : ''}</span>
+          ${r.notes ? `<span class="text-muted">${escapeHtml(r.notes)}</span>` : ''}
+          <span class="badge badge--${statusClass}">${r.status}</span>
+          ${r.status !== 'Completed' ? `<button class="btn btn-compact complete-reminder-btn" data-id="${r._id}">Complete</button>` : ''}
+          <button class="btn btn-compact btn-danger delete-reminder-btn" data-id="${r._id}" title="Delete">&times;</button>
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No reminders</p>`;
+    }
+    html += `<details class="module-add-form"><summary class="btn btn-compact">Add Reminder</summary>
+      <div class="module-form-body">
+        <input type="text" class="remind-title-input" placeholder="Reminder title" />
+        <input type="date" class="remind-due-input" />
+        <input type="text" class="remind-notes-input" placeholder="Notes (optional)" />
+        <button class="btn btn-compact btn-primary add-reminder-btn" data-property="${p.id}">Add Reminder</button>
+      </div></details>`;
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.complete-reminder-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/reminders/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        if (r.ok) { showToast('Reminder completed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelectorAll('.delete-reminder-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/reminders/${btn.dataset.id}`, {
+          method: 'DELETE', headers: { 'CSRF-Token': csrfToken }, credentials: 'same-origin'
+        });
+        if (r.ok) { btn.closest('.module-list-item')?.remove(); showToast('Reminder deleted', 'success'); }
+        else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-reminder-btn')?.addEventListener('click', async () => {
+      const title = container.querySelector('.remind-title-input')?.value;
+      const due = container.querySelector('.remind-due-input')?.value;
+      const notes = container.querySelector('.remind-notes-input')?.value;
+      if (!title) { showToast('Title required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/reminders`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ title, due_date: due || null, notes: notes || null })
+      });
+      if (r.ok) { showToast('Reminder added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // HOA Fees
+  if (isModuleEnabled('hoa_fees') && moduleData.hoaFees) {
+    const overdue = moduleData.hoaFees.filter((h) => h.status === 'Overdue');
+    let html = `<div class="module-section"><h4 class="module-section__title">HOA Fees ${overdue.length ? `<span class="badge badge--danger">${overdue.length} overdue</span>` : ''}</h4>`;
+    if (moduleData.hoaFees.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.hoaFees.forEach((h) => {
+        const statusClass = h.status === 'Paid' ? 'success' : h.status === 'Overdue' ? 'danger' : h.status === 'Current' ? 'info' : 'warning';
+        html += `<div class="module-list-item ${h.status === 'Overdue' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(h.association_name || 'HOA')}</strong> — $${Number(h.monthly_fee || 0).toLocaleString()}/mo</span>
+          <span class="text-muted">${h.due_date ? 'Due: ' + new Date(h.due_date).toLocaleDateString() : ''} ${h.balance != null ? '| Balance: $' + Number(h.balance).toLocaleString() : ''}</span>
+          <span class="badge badge--${statusClass}">${h.status}</span>
+          ${isStaff() && h.status === 'Overdue' ? `<button class="btn btn-compact pay-hoa-btn" data-id="${h._id}">Record Payment</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No HOA fees</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add HOA Fee</summary>
+        <div class="module-form-body">
+          <input type="text" class="hoa-assoc-input" placeholder="Association name" />
+          <input type="number" class="hoa-fee-input" placeholder="Monthly fee ($)" step="0.01" />
+          <input type="date" class="hoa-due-input" />
+          <button class="btn btn-compact btn-primary add-hoa-btn" data-property="${p.id}">Add HOA Fee</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.pay-hoa-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/hoa/${btn.dataset.id}/payment`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Paid' })
+        });
+        if (r.ok) { showToast('Payment recorded', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-hoa-btn')?.addEventListener('click', async () => {
+      const assoc = container.querySelector('.hoa-assoc-input')?.value;
+      const fee = container.querySelector('.hoa-fee-input')?.value;
+      const due = container.querySelector('.hoa-due-input')?.value;
+      if (!assoc || !fee) { showToast('Association and fee required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/hoa`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ association_name: assoc, monthly_fee: fee, due_date: due || null })
+      });
+      if (r.ok) { showToast('HOA fee added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Foreclosure
+  if (isModuleEnabled('foreclosure') && moduleData.foreclosure) {
+    const active = moduleData.foreclosure.filter((f) => f.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Foreclosure ${active.length ? `<span class="badge badge--danger">${active.length} active</span>` : ''}</h4>`;
+    if (moduleData.foreclosure.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.foreclosure.forEach((f) => {
+        const statusClass = f.status === 'Active' ? 'danger' : f.status === 'Dismissed' ? 'success' : f.status === 'Completed' ? 'warning' : 'info';
+        html += `<div class="module-list-item ${f.status === 'Active' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(f.lender || 'Unknown lender')}</strong> — Owed: $${Number(f.amount_owed || 0).toLocaleString()}</span>
+          <span class="text-muted">Filed: ${f.filing_date ? new Date(f.filing_date).toLocaleDateString() : 'N/A'} ${f.sale_date ? '| Sale: ' + new Date(f.sale_date).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${f.status}</span>
+          ${isStaff() && f.status === 'Active' ? `<button class="btn btn-compact dismiss-foreclosure-btn" data-id="${f._id}">Dismiss</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No foreclosure records</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">File Foreclosure</summary>
+        <div class="module-form-body">
+          <input type="text" class="fc-lender-input" placeholder="Lender name" />
+          <input type="number" class="fc-amount-input" placeholder="Amount owed ($)" step="0.01" />
+          <input type="date" class="fc-filing-input" />
+          <input type="date" class="fc-sale-input" />
+          <button class="btn btn-compact btn-primary add-foreclosure-btn" data-property="${p.id}">File Foreclosure</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.dismiss-foreclosure-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/foreclosure/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Dismissed' })
+        });
+        if (r.ok) { showToast('Foreclosure dismissed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-foreclosure-btn')?.addEventListener('click', async () => {
+      const lender = container.querySelector('.fc-lender-input')?.value;
+      const amount = container.querySelector('.fc-amount-input')?.value;
+      const filing = container.querySelector('.fc-filing-input')?.value;
+      const sale = container.querySelector('.fc-sale-input')?.value;
+      if (!lender || !amount) { showToast('Lender and amount required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/foreclosure`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ lender, amount_owed: amount, filing_date: filing || null, sale_date: sale || null })
+      });
+      if (r.ok) { showToast('Foreclosure filed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Zoning Permits
+  if (isModuleEnabled('zoning_permits') && moduleData.zoningPermits) {
+    const pending = moduleData.zoningPermits.filter((z) => z.status === 'Pending');
+    let html = `<div class="module-section"><h4 class="module-section__title">Zoning & Permits ${pending.length ? `<span class="badge badge--warning">${pending.length} pending</span>` : ''}</h4>`;
+    if (moduleData.zoningPermits.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.zoningPermits.forEach((z) => {
+        const statusClass = z.status === 'Approved' ? 'success' : z.status === 'Denied' ? 'danger' : z.status === 'Expired' ? 'warning' : 'info';
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(z.permit_type)}</strong> ${z.permit_number ? '#' + escapeHtml(z.permit_number) : ''}</span>
+          <span class="text-muted">${z.description ? escapeHtml(z.description) + ' | ' : ''}${z.issued_date ? 'Issued: ' + new Date(z.issued_date).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${z.status}</span>
+          ${isStaff() && z.status === 'Pending' ? `<button class="btn btn-compact approve-zoning-btn" data-id="${z._id}">Approve</button><button class="btn btn-compact btn-danger deny-zoning-btn" data-id="${z._id}">Deny</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No permits</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Permit</summary>
+        <div class="module-form-body">
+          <select class="zoning-type-select"><option>Building Permit</option><option>Zoning Variance</option><option>Conditional Use</option><option>Demolition</option><option>Renovation</option><option>Sign Permit</option><option>Other</option></select>
+          <input type="text" class="zoning-number-input" placeholder="Permit number" />
+          <input type="text" class="zoning-desc-input" placeholder="Description" />
+          <input type="date" class="zoning-date-input" />
+          <button class="btn btn-compact btn-primary add-zoning-btn" data-property="${p.id}">Add Permit</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.approve-zoning-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/zoning/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Approved' })
+        });
+        if (r.ok) { showToast('Permit approved', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelectorAll('.deny-zoning-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/zoning/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Denied' })
+        });
+        if (r.ok) { showToast('Permit denied', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-zoning-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.zoning-type-select')?.value;
+      const num = container.querySelector('.zoning-number-input')?.value;
+      const desc = container.querySelector('.zoning-desc-input')?.value;
+      const date = container.querySelector('.zoning-date-input')?.value;
+      if (!type) { showToast('Select permit type', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/zoning`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ permit_type: type, permit_number: num || null, description: desc || null, issued_date: date || null })
+      });
+      if (r.ok) { showToast('Permit added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Code Enforcement
+  if (isModuleEnabled('code_enforcement') && moduleData.citations) {
+    const open = moduleData.citations.filter((c) => c.status === 'Open');
+    let html = `<div class="module-section"><h4 class="module-section__title">Code Enforcement ${open.length ? `<span class="badge badge--danger">${open.length} open</span>` : ''}</h4>`;
+    if (moduleData.citations.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.citations.forEach((c) => {
+        const statusClass = c.status === 'Resolved' ? 'success' : c.status === 'Appealed' ? 'warning' : 'danger';
+        html += `<div class="module-list-item ${c.status === 'Open' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(c.violation_type)}</strong> ${c.citation_number ? '#' + escapeHtml(c.citation_number) : ''} ${c.fine_amount ? '— $' + Number(c.fine_amount).toLocaleString() : ''}</span>
+          <span class="text-muted">${c.description ? escapeHtml(c.description) + ' | ' : ''}${c.date_issued ? 'Issued: ' + new Date(c.date_issued).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${c.status}</span>
+          ${isStaff() && c.status === 'Open' ? `<button class="btn btn-compact resolve-citation-btn" data-id="${c._id}">Resolve</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No citations</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Issue Citation</summary>
+        <div class="module-form-body">
+          <select class="cite-type-select"><option>Building Code</option><option>Fire Safety</option><option>Zoning Violation</option><option>Nuisance</option><option>Health Hazard</option><option>Overgrown Property</option><option>Other</option></select>
+          <input type="text" class="cite-number-input" placeholder="Citation number" />
+          <input type="number" class="cite-fine-input" placeholder="Fine amount ($)" step="0.01" />
+          <input type="text" class="cite-desc-input" placeholder="Description" />
+          <button class="btn btn-compact btn-primary add-citation-btn" data-property="${p.id}">Issue Citation</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.resolve-citation-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/citations/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Resolved' })
+        });
+        if (r.ok) { showToast('Citation resolved', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-citation-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.cite-type-select')?.value;
+      const num = container.querySelector('.cite-number-input')?.value;
+      const fine = container.querySelector('.cite-fine-input')?.value;
+      const desc = container.querySelector('.cite-desc-input')?.value;
+      if (!type) { showToast('Select violation type', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/citations`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ violation_type: type, citation_number: num || null, fine_amount: fine || null, description: desc || null })
+      });
+      if (r.ok) { showToast('Citation issued', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Inspections
+  if (isModuleEnabled('inspections') && moduleData.inspections) {
+    const scheduled = moduleData.inspections.filter((i) => i.status === 'Scheduled' || i.status === 'Pending');
+    let html = `<div class="module-section"><h4 class="module-section__title">Inspections ${scheduled.length ? `<span class="badge badge--info">${scheduled.length} upcoming</span>` : ''}</h4>`;
+    if (moduleData.inspections.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.inspections.forEach((i) => {
+        const statusClass = i.status === 'Passed' ? 'success' : i.status === 'Failed' ? 'danger' : i.status === 'Scheduled' ? 'info' : 'warning';
+        html += `<div class="module-list-item ${i.status === 'Failed' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(i.inspection_type)}</strong> ${i.inspector ? '— ' + escapeHtml(i.inspector) : ''}</span>
+          <span class="text-muted">${i.date ? new Date(i.date).toLocaleDateString() : 'Not scheduled'} ${i.notes ? '| ' + escapeHtml(i.notes) : ''}</span>
+          <span class="badge badge--${statusClass}">${i.status}</span>
+          ${isStaff() && (i.status === 'Scheduled' || i.status === 'Pending') ? `<button class="btn btn-compact pass-insp-btn" data-id="${i._id}">Pass</button><button class="btn btn-compact btn-danger fail-insp-btn" data-id="${i._id}">Fail</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No inspections</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Schedule Inspection</summary>
+        <div class="module-form-body">
+          <select class="insp-type-select"><option>General</option><option>Fire Safety</option><option>Structural</option><option>Electrical</option><option>Plumbing</option><option>Health & Safety</option><option>Final Walkthrough</option><option>Other</option></select>
+          <input type="text" class="insp-inspector-input" placeholder="Inspector name" />
+          <input type="date" class="insp-date-input" />
+          <input type="text" class="insp-notes-input" placeholder="Notes (optional)" />
+          <button class="btn btn-compact btn-primary add-insp-btn" data-property="${p.id}">Schedule</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.pass-insp-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/inspections/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Passed' })
+        });
+        if (r.ok) { showToast('Inspection passed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelectorAll('.fail-insp-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/inspections/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Failed' })
+        });
+        if (r.ok) { showToast('Inspection failed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-insp-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.insp-type-select')?.value;
+      const inspector = container.querySelector('.insp-inspector-input')?.value;
+      const date = container.querySelector('.insp-date-input')?.value;
+      const notes = container.querySelector('.insp-notes-input')?.value;
+      if (!type || !date) { showToast('Type and date required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/inspections`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ inspection_type: type, inspector: inspector || null, date, notes: notes || null })
+      });
+      if (r.ok) { showToast('Inspection scheduled', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Improvements
+  if (isModuleEnabled('improvements') && moduleData.improvements) {
+    const inProgress = moduleData.improvements.filter((i) => i.status === 'In Progress' || i.status === 'Planned');
+    let html = `<div class="module-section"><h4 class="module-section__title">Improvements ${inProgress.length ? `<span class="badge badge--info">${inProgress.length} active</span>` : ''}</h4>`;
+    if (moduleData.improvements.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.improvements.forEach((i) => {
+        const statusClass = i.status === 'Completed' ? 'success' : i.status === 'In Progress' ? 'info' : i.status === 'Planned' ? 'warning' : 'danger';
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(i.description)}</strong> ${i.cost ? '— $' + Number(i.cost).toLocaleString() : ''}</span>
+          <span class="text-muted">${i.contractor ? escapeHtml(i.contractor) + ' | ' : ''}${i.date_completed ? 'Completed: ' + new Date(i.date_completed).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${i.status}</span>
+          ${isStaff() && i.status !== 'Completed' ? `<button class="btn btn-compact complete-improve-btn" data-id="${i._id}">Complete</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No improvements</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Improvement</summary>
+        <div class="module-form-body">
+          <input type="text" class="improve-desc-input" placeholder="Description" />
+          <input type="number" class="improve-cost-input" placeholder="Cost ($)" step="0.01" />
+          <input type="text" class="improve-contractor-input" placeholder="Contractor" />
+          <select class="improve-status-select"><option>Planned</option><option>In Progress</option><option>Completed</option></select>
+          <input type="date" class="improve-date-input" />
+          <button class="btn btn-compact btn-primary add-improve-btn" data-property="${p.id}">Add Improvement</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.complete-improve-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/improvements/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Completed', date_completed: new Date().toISOString() })
+        });
+        if (r.ok) { showToast('Improvement completed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-improve-btn')?.addEventListener('click', async () => {
+      const desc = container.querySelector('.improve-desc-input')?.value;
+      const cost = container.querySelector('.improve-cost-input')?.value;
+      const contractor = container.querySelector('.improve-contractor-input')?.value;
+      const status = container.querySelector('.improve-status-select')?.value;
+      const date = container.querySelector('.improve-date-input')?.value;
+      if (!desc) { showToast('Description required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/improvements`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ description: desc, cost: cost || null, contractor: contractor || null, status: status || 'Planned', date_completed: date || null })
+      });
+      if (r.ok) { showToast('Improvement added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Damage Reports
+  if (isModuleEnabled('damage_reports') && moduleData.damageReports) {
+    const unresolved = moduleData.damageReports.filter((d) => d.status !== 'Repaired');
+    let html = `<div class="module-section"><h4 class="module-section__title">Damage Reports ${unresolved.length ? `<span class="badge badge--danger">${unresolved.length} unresolved</span>` : ''}</h4>`;
+    if (moduleData.damageReports.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.damageReports.forEach((d) => {
+        const statusClass = d.status === 'Repaired' ? 'success' : d.status === 'Under Review' ? 'warning' : 'danger';
+        const sevClass = d.severity === 'Severe' ? 'danger' : d.severity === 'Moderate' ? 'warning' : 'info';
+        html += `<div class="module-list-item ${d.severity === 'Severe' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(d.damage_type)}</strong> ${d.estimated_cost ? '— Est. $' + Number(d.estimated_cost).toLocaleString() : ''}</span>
+          <span class="text-muted">${d.description ? escapeHtml(d.description) + ' | ' : ''}${d.date_reported ? 'Reported: ' + new Date(d.date_reported).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${sevClass}">${d.severity || 'Unknown'}</span>
+          <span class="badge badge--${statusClass}">${d.status}</span>
+          ${isStaff() && d.status !== 'Repaired' ? `<button class="btn btn-compact repair-damage-btn" data-id="${d._id}">Mark Repaired</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No damage reports</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Report Damage</summary>
+        <div class="module-form-body">
+          <select class="dmg-type-select"><option>Structural</option><option>Water</option><option>Fire</option><option>Storm</option><option>Vandalism</option><option>Wear & Tear</option><option>Other</option></select>
+          <select class="dmg-severity-select"><option>Minor</option><option>Moderate</option><option>Severe</option></select>
+          <input type="number" class="dmg-cost-input" placeholder="Estimated cost ($)" step="0.01" />
+          <input type="text" class="dmg-desc-input" placeholder="Description" />
+          <button class="btn btn-compact btn-primary add-damage-btn" data-property="${p.id}">Report Damage</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.repair-damage-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/damage-reports/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Repaired' })
+        });
+        if (r.ok) { showToast('Marked as repaired', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-damage-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.dmg-type-select')?.value;
+      const severity = container.querySelector('.dmg-severity-select')?.value;
+      const cost = container.querySelector('.dmg-cost-input')?.value;
+      const desc = container.querySelector('.dmg-desc-input')?.value;
+      if (!type) { showToast('Select damage type', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/damage-reports`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ damage_type: type, severity, estimated_cost: cost || null, description: desc || null })
+      });
+      if (r.ok) { showToast('Damage reported', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Utilities
+  if (isModuleEnabled('utilities') && moduleData.utilities) {
+    const active = moduleData.utilities.filter((u) => u.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Utilities ${active.length ? `<span class="badge badge--info">${active.length} active</span>` : ''}</h4>`;
+    if (moduleData.utilities.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.utilities.forEach((u) => {
+        const statusClass = u.status === 'Active' ? 'info' : u.status === 'Disconnected' ? 'danger' : 'warning';
+        html += `<div class="module-list-item ${u.status === 'Disconnected' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(u.utility_type)}</strong> — ${escapeHtml(u.provider || 'Unknown provider')}</span>
+          <span class="text-muted">${u.account_number ? 'Acct: ' + escapeHtml(u.account_number) + ' | ' : ''}${u.monthly_cost ? '$' + Number(u.monthly_cost).toLocaleString() + '/mo' : ''}</span>
+          <span class="badge badge--${statusClass}">${u.status}</span>
+          ${isStaff() && u.status === 'Active' ? `<button class="btn btn-compact disconnect-util-btn" data-id="${u._id}">Disconnect</button>` : ''}
+          ${isStaff() && u.status === 'Disconnected' ? `<button class="btn btn-compact reconnect-util-btn" data-id="${u._id}">Reconnect</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No utilities</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Utility</summary>
+        <div class="module-form-body">
+          <select class="util-type-select"><option>Electric</option><option>Water</option><option>Gas</option><option>Sewer</option><option>Internet</option><option>Trash</option><option>Other</option></select>
+          <input type="text" class="util-provider-input" placeholder="Provider name" />
+          <input type="text" class="util-acct-input" placeholder="Account number" />
+          <input type="number" class="util-cost-input" placeholder="Monthly cost ($)" step="0.01" />
+          <button class="btn btn-compact btn-primary add-util-btn" data-property="${p.id}">Add Utility</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.disconnect-util-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/utilities/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Disconnected' })
+        });
+        if (r.ok) { showToast('Utility disconnected', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelectorAll('.reconnect-util-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/utilities/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Active' })
+        });
+        if (r.ok) { showToast('Utility reconnected', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-util-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.util-type-select')?.value;
+      const provider = container.querySelector('.util-provider-input')?.value;
+      const acct = container.querySelector('.util-acct-input')?.value;
+      const cost = container.querySelector('.util-cost-input')?.value;
+      if (!type || !provider) { showToast('Type and provider required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/utilities`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ utility_type: type, provider, account_number: acct || null, monthly_cost: cost || null })
+      });
+      if (r.ok) { showToast('Utility added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Environmental
+  if (isModuleEnabled('environmental') && moduleData.environmental) {
+    const flagged = moduleData.environmental.filter((e) => e.status === 'Contaminated' || e.risk_level === 'High');
+    let html = `<div class="module-section"><h4 class="module-section__title">Environmental ${flagged.length ? `<span class="badge badge--danger">${flagged.length} flagged</span>` : ''}</h4>`;
+    if (moduleData.environmental.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.environmental.forEach((e) => {
+        const statusClass = e.status === 'Clear' ? 'success' : e.status === 'Contaminated' ? 'danger' : 'warning';
+        const riskClass = e.risk_level === 'High' ? 'danger' : e.risk_level === 'Medium' ? 'warning' : 'info';
+        html += `<div class="module-list-item ${e.status === 'Contaminated' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(e.assessment_type)}</strong></span>
+          <span class="text-muted">${e.description ? escapeHtml(e.description) + ' | ' : ''}${e.date ? new Date(e.date).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${e.status}</span>
+          ${e.risk_level ? `<span class="badge badge--${riskClass}">${e.risk_level} risk</span>` : ''}
+          ${isStaff() && e.status === 'Under Review' ? `<button class="btn btn-compact clear-env-btn" data-id="${e._id}">Mark Clear</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No environmental records</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Assessment</summary>
+        <div class="module-form-body">
+          <select class="env-type-select"><option>Phase I ESA</option><option>Phase II ESA</option><option>Soil Test</option><option>Water Quality</option><option>Air Quality</option><option>Asbestos Survey</option><option>Lead Paint</option><option>Other</option></select>
+          <select class="env-risk-select"><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>
+          <input type="text" class="env-desc-input" placeholder="Description" />
+          <input type="date" class="env-date-input" />
+          <button class="btn btn-compact btn-primary add-env-btn" data-property="${p.id}">Add Assessment</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.clear-env-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/environmental/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Clear' })
+        });
+        if (r.ok) { showToast('Assessment cleared', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-env-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.env-type-select')?.value;
+      const risk = container.querySelector('.env-risk-select')?.value;
+      const desc = container.querySelector('.env-desc-input')?.value;
+      const date = container.querySelector('.env-date-input')?.value;
+      if (!type) { showToast('Select assessment type', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/environmental`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ assessment_type: type, risk_level: risk, description: desc || null, date: date || null })
+      });
+      if (r.ok) { showToast('Assessment added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Landmarks
+  if (isModuleEnabled('landmarks') && moduleData.landmark) {
+    const active = moduleData.landmark.filter((l) => l.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Landmark Designations ${active.length ? `<span class="badge badge--success">${active.length}</span>` : ''}</h4>`;
+    if (moduleData.landmark.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.landmark.forEach((l) => {
+        const statusClass = l.status === 'Active' ? 'success' : l.status === 'Pending' ? 'warning' : 'danger';
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(l.designation)}</strong> ${l.authority ? '— ' + escapeHtml(l.authority) : ''}</span>
+          <span class="text-muted">${l.description ? escapeHtml(l.description) + ' | ' : ''}${l.date_designated ? 'Designated: ' + new Date(l.date_designated).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${l.status}</span>
+          ${isStaff() && l.status === 'Active' ? `<button class="btn btn-compact revoke-landmark-btn" data-id="${l._id}">Revoke</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No landmark designations</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Designation</summary>
+        <div class="module-form-body">
+          <input type="text" class="lm-desig-input" placeholder="Designation title" />
+          <input type="text" class="lm-authority-input" placeholder="Designating authority" />
+          <input type="text" class="lm-desc-input" placeholder="Description" />
+          <input type="date" class="lm-date-input" />
+          <button class="btn btn-compact btn-primary add-landmark-btn" data-property="${p.id}">Add Designation</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.revoke-landmark-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/landmark/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Revoked' })
+        });
+        if (r.ok) { showToast('Designation revoked', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-landmark-btn')?.addEventListener('click', async () => {
+      const desig = container.querySelector('.lm-desig-input')?.value;
+      const authority = container.querySelector('.lm-authority-input')?.value;
+      const desc = container.querySelector('.lm-desc-input')?.value;
+      const date = container.querySelector('.lm-date-input')?.value;
+      if (!desig) { showToast('Designation title required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/landmark`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ designation: desig, authority: authority || null, description: desc || null, date_designated: date || null })
+      });
+      if (r.ok) { showToast('Designation added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Access Lists
+  if (isModuleEnabled('access_lists') && moduleData.accessList) {
+    const active = moduleData.accessList.filter((a) => a.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Access List ${active.length ? `<span class="badge badge--info">${active.length} active</span>` : ''}</h4>`;
+    if (moduleData.accessList.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.accessList.forEach((a) => {
+        const statusClass = a.status === 'Active' ? 'info' : 'danger';
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(a.person_name)}</strong> — ${escapeHtml(a.access_level || 'Standard')}</span>
+          <span class="text-muted">${a.granted_date ? 'Granted: ' + new Date(a.granted_date).toLocaleDateString() : ''} ${a.notes ? '| ' + escapeHtml(a.notes) : ''}</span>
+          <span class="badge badge--${statusClass}">${a.status}</span>
+          ${isStaff() && a.status === 'Active' ? `<button class="btn btn-compact revoke-access-btn" data-id="${a._id}">Revoke</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No access entries</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Access Entry</summary>
+        <div class="module-form-body">
+          <input type="text" class="acl-name-input" placeholder="Person name" />
+          <select class="acl-level-select"><option>Full Access</option><option>Restricted</option><option>Temporary</option><option>Emergency Only</option></select>
+          <input type="text" class="acl-notes-input" placeholder="Notes (optional)" />
+          <button class="btn btn-compact btn-primary add-access-btn" data-property="${p.id}">Add Entry</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.revoke-access-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/access-list/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Revoked' })
+        });
+        if (r.ok) { showToast('Access revoked', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-access-btn')?.addEventListener('click', async () => {
+      const name = container.querySelector('.acl-name-input')?.value;
+      const level = container.querySelector('.acl-level-select')?.value;
+      const notes = container.querySelector('.acl-notes-input')?.value;
+      if (!name) { showToast('Person name required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/access-list`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ person_name: name, access_level: level, notes: notes || null })
+      });
+      if (r.ok) { showToast('Access granted', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Parking
+  if (isModuleEnabled('parking') && moduleData.parking) {
+    const occupied = moduleData.parking.filter((pk) => pk.status === 'Occupied' || pk.status === 'Reserved');
+    let html = `<div class="module-section"><h4 class="module-section__title">Parking ${occupied.length ? `<span class="badge badge--info">${occupied.length} in use</span>` : ''}</h4>`;
+    if (moduleData.parking.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.parking.forEach((pk) => {
+        const statusClass = pk.status === 'Available' ? 'success' : pk.status === 'Occupied' ? 'info' : pk.status === 'Reserved' ? 'warning' : 'danger';
+        html += `<div class="module-list-item">
+          <span><strong>Space ${escapeHtml(pk.space_number || '?')}</strong> — ${escapeHtml(pk.type || 'Standard')} ${pk.monthly_fee ? '| $' + Number(pk.monthly_fee).toLocaleString() + '/mo' : ''}</span>
+          <span class="text-muted">${pk.assigned_to ? 'Assigned: ' + escapeHtml(pk.assigned_to) : 'Unassigned'}</span>
+          <span class="badge badge--${statusClass}">${pk.status}</span>
+          ${isStaff() && pk.status !== 'Available' ? `<button class="btn btn-compact release-parking-btn" data-id="${pk._id}">Release</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No parking spaces</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Parking Space</summary>
+        <div class="module-form-body">
+          <input type="text" class="park-number-input" placeholder="Space number" />
+          <select class="park-type-select"><option>Standard</option><option>Reserved</option><option>Guest</option><option>Handicapped</option><option>Loading</option></select>
+          <input type="text" class="park-assigned-input" placeholder="Assigned to (optional)" />
+          <input type="number" class="park-fee-input" placeholder="Monthly fee ($)" step="0.01" />
+          <button class="btn btn-compact btn-primary add-parking-btn" data-property="${p.id}">Add Space</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.release-parking-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/parking/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Available', assigned_to: null })
+        });
+        if (r.ok) { showToast('Space released', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-parking-btn')?.addEventListener('click', async () => {
+      const num = container.querySelector('.park-number-input')?.value;
+      const type = container.querySelector('.park-type-select')?.value;
+      const assigned = container.querySelector('.park-assigned-input')?.value;
+      const fee = container.querySelector('.park-fee-input')?.value;
+      if (!num) { showToast('Space number required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/parking`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ space_number: num, type, assigned_to: assigned || null, monthly_fee: fee || null })
+      });
+      if (r.ok) { showToast('Space added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Property Disputes
+  if (isModuleEnabled('property_disputes') && moduleData.disputes) {
+    const open = moduleData.disputes.filter((d) => d.status === 'Open' || d.status === 'Escalated');
+    let html = `<div class="module-section"><h4 class="module-section__title">Property Disputes ${open.length ? `<span class="badge badge--danger">${open.length} open</span>` : ''}</h4>`;
+    if (moduleData.disputes.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.disputes.forEach((d) => {
+        const statusClass = d.status === 'Resolved' ? 'success' : d.status === 'Escalated' ? 'danger' : d.status === 'Open' ? 'warning' : 'info';
+        html += `<div class="module-list-item ${d.status === 'Escalated' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(d.dispute_type)}</strong> ${d.parties ? '— ' + escapeHtml(d.parties) : ''}</span>
+          <span class="text-muted">${d.description ? escapeHtml(d.description) + ' | ' : ''}${d.filed_date ? 'Filed: ' + new Date(d.filed_date).toLocaleDateString() : ''}</span>
+          <span class="badge badge--${statusClass}">${d.status}</span>
+          ${isStaff() && d.status === 'Open' ? `<button class="btn btn-compact resolve-dispute-btn" data-id="${d._id}">Resolve</button><button class="btn btn-compact btn-danger escalate-dispute-btn" data-id="${d._id}">Escalate</button>` : ''}
+          ${isStaff() && d.status === 'Escalated' ? `<button class="btn btn-compact resolve-dispute-btn" data-id="${d._id}">Resolve</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No disputes</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">File Dispute</summary>
+        <div class="module-form-body">
+          <select class="disp-type-select"><option>Boundary</option><option>Easement</option><option>Noise</option><option>Encroachment</option><option>Ownership</option><option>Nuisance</option><option>Other</option></select>
+          <input type="text" class="disp-parties-input" placeholder="Parties involved" />
+          <input type="text" class="disp-desc-input" placeholder="Description" />
+          <button class="btn btn-compact btn-primary add-dispute-btn" data-property="${p.id}">File Dispute</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.resolve-dispute-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/disputes/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Resolved' })
+        });
+        if (r.ok) { showToast('Dispute resolved', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelectorAll('.escalate-dispute-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/disputes/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Escalated' })
+        });
+        if (r.ok) { showToast('Dispute escalated', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-dispute-btn')?.addEventListener('click', async () => {
+      const type = container.querySelector('.disp-type-select')?.value;
+      const parties = container.querySelector('.disp-parties-input')?.value;
+      const desc = container.querySelector('.disp-desc-input')?.value;
+      if (!type) { showToast('Select dispute type', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/disputes`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ dispute_type: type, parties: parties || null, description: desc || null })
+      });
+      if (r.ok) { showToast('Dispute filed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
 }
 
 /* ── Modal Handling: Escape & Click-Outside ────────── */
@@ -1884,3 +2868,342 @@ async function loadDistricts() {
 // Load map modules on startup
 if (isModuleEnabled('annotations')) void loadAnnotations();
 if (isModuleEnabled('districts')) void loadDistricts();
+
+/* ── Advanced Filter System ────────────────────────── */
+const filterBar = document.getElementById('filterBar');
+const filterToggleBtn = document.getElementById('filterToggle');
+const filterStatus = document.getElementById('filterStatus');
+const filterZone = document.getElementById('filterZone');
+const filterMinValue = document.getElementById('filterMinValue');
+const filterMaxValue = document.getElementById('filterMaxValue');
+const clearFiltersBtn = document.getElementById('clearFilters');
+
+let allProperties = [];
+let filteredProperties = [];
+
+if (filterZone && taxPresets.length) {
+  taxPresets.forEach((p) => {
+    const opt = document.createElement('option');
+    opt.value = p.name || '';
+    opt.textContent = p.name || '';
+    filterZone.appendChild(opt);
+  });
+}
+
+filterToggleBtn?.addEventListener('click', () => {
+  filterBar?.classList.toggle('hidden');
+  filterToggleBtn.classList.toggle('btn-active');
+});
+
+function getActiveFilters() {
+  const types = [];
+  document.querySelectorAll('.filter-type:checked').forEach((cb) => types.push(cb.value));
+  return {
+    types,
+    status: filterStatus?.value || '',
+    zone: filterZone?.value || '',
+    minValue: filterMinValue?.value ? Number(filterMinValue.value) : null,
+    maxValue: filterMaxValue?.value ? Number(filterMaxValue.value) : null
+  };
+}
+
+function applyFilters(props) {
+  const f = getActiveFilters();
+  return props.filter((p) => {
+    if (f.types.length && !f.types.includes(p.type)) return false;
+    if (f.status && p.status !== f.status) return false;
+    if (f.zone && p.tax_zone !== f.zone) return false;
+    const val = Number(p.assessed_value) || 0;
+    if (f.minValue != null && val < f.minValue) return false;
+    if (f.maxValue != null && val > f.maxValue) return false;
+    return true;
+  });
+}
+
+function renderMapFromProperties(props) {
+  featureGroup.clearLayers();
+  props.forEach((p) => {
+    if (!p || !p.geojson) return;
+    const layer = L.geoJSON({ type: 'Feature', geometry: p.geojson }, { style: styleForProperty(p) }).addTo(featureGroup);
+    layer.on('click', () => renderPanel(p));
+  });
+  if (isModuleEnabled('map_labels') || localStorage.getItem('sapa_map_labels') === 'true') {
+    renderMapLabels(props);
+  }
+}
+
+function reapplyFilters() {
+  filteredProperties = applyFilters(allProperties);
+  renderMapFromProperties(filteredProperties);
+  if (!document.getElementById('tableView')?.classList.contains('hidden')) {
+    renderTable(filteredProperties);
+  }
+}
+
+document.querySelectorAll('.filter-type').forEach((cb) => cb.addEventListener('change', reapplyFilters));
+filterStatus?.addEventListener('change', reapplyFilters);
+filterZone?.addEventListener('change', reapplyFilters);
+filterMinValue?.addEventListener('input', debounce(reapplyFilters, 400));
+filterMaxValue?.addEventListener('input', debounce(reapplyFilters, 400));
+
+clearFiltersBtn?.addEventListener('click', () => {
+  document.querySelectorAll('.filter-type').forEach((cb) => { cb.checked = true; });
+  if (filterStatus) filterStatus.value = '';
+  if (filterZone) filterZone.value = '';
+  if (filterMinValue) filterMinValue.value = '';
+  if (filterMaxValue) filterMaxValue.value = '';
+  reapplyFilters();
+});
+
+const origLoadProperties = loadProperties;
+loadProperties = async function (search = '') {
+  const seq = ++loadSeq;
+  const q = search.trim();
+  const url = `/api/properties?search=${encodeURIComponent(q)}`;
+  let res;
+  try {
+    res = await fetch(url, { credentials: 'same-origin' });
+  } catch (e) {
+    console.error(e);
+    return;
+  }
+  let props;
+  try {
+    props = await res.json();
+  } catch {
+    return;
+  }
+  if (seq !== loadSeq) return;
+  if (!Array.isArray(props)) {
+    console.error('Properties API returned non-array', props);
+    return;
+  }
+  allProperties = props;
+  filteredProperties = applyFilters(props);
+  renderMapFromProperties(filteredProperties);
+  if (!document.getElementById('tableView')?.classList.contains('hidden')) {
+    renderTable(filteredProperties);
+  }
+};
+
+/* ── Map Labels ────────────────────────────────────── */
+let labelLayer = null;
+
+function renderMapLabels(props) {
+  if (labelLayer) map.removeLayer(labelLayer);
+  labelLayer = L.layerGroup();
+  props.forEach((p) => {
+    if (!p.geojson) return;
+    try {
+      const gj = L.geoJSON({ type: 'Feature', geometry: p.geojson });
+      const center = gj.getBounds().getCenter();
+      const label = L.divIcon({
+        className: 'map-label',
+        html: `<span class="map-label-text">${escapeHtml(p.name || p.parcel_id || '')}</span>`,
+        iconSize: [0, 0]
+      });
+      L.marker(center, { icon: label, interactive: false }).addTo(labelLayer);
+    } catch { /* skip invalid geojson */ }
+  });
+  labelLayer.addTo(map);
+}
+
+/* ── Table View ────────────────────────────────────── */
+const tableView = document.getElementById('tableView');
+const viewToggleBtn = document.getElementById('viewToggle');
+const propertyTableBody = document.getElementById('propertyTableBody');
+const tableCount = document.getElementById('tableCount');
+const tablePagination = document.getElementById('tablePagination');
+const mapStage = document.querySelector('.map-stage');
+let tableSort = { key: 'name', dir: 'asc' };
+let tablePage = 1;
+const TABLE_PAGE_SIZE = 50;
+
+viewToggleBtn?.addEventListener('click', () => {
+  const isTableVisible = !tableView?.classList.contains('hidden');
+  if (isTableVisible) {
+    tableView.classList.add('hidden');
+    viewToggleBtn.textContent = 'Table';
+  } else {
+    tableView?.classList.remove('hidden');
+    viewToggleBtn.textContent = 'Map';
+    renderTable(filteredProperties);
+  }
+});
+
+document.getElementById('backToMapBtn')?.addEventListener('click', () => {
+  tableView?.classList.add('hidden');
+  viewToggleBtn.textContent = 'Table';
+});
+
+document.querySelectorAll('.property-table th.sortable').forEach((th) => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (tableSort.key === key) {
+      tableSort.dir = tableSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      tableSort = { key, dir: 'asc' };
+    }
+    document.querySelectorAll('.property-table th').forEach((h) => {
+      h.classList.remove('sorted-asc', 'sorted-desc');
+    });
+    th.classList.add(tableSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    renderTable(filteredProperties);
+  });
+});
+
+function sortProperties(props, key, dir) {
+  return [...props].sort((a, b) => {
+    let va = a[key], vb = b[key];
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va == null) va = '';
+    if (vb == null) vb = '';
+    if (va < vb) return dir === 'asc' ? -1 : 1;
+    if (va > vb) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+function renderTable(props) {
+  if (!propertyTableBody) return;
+  const sorted = sortProperties(props, tableSort.key, tableSort.dir);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / TABLE_PAGE_SIZE));
+  if (tablePage > totalPages) tablePage = totalPages;
+  const start = (tablePage - 1) * TABLE_PAGE_SIZE;
+  const pageItems = sorted.slice(start, start + TABLE_PAGE_SIZE);
+
+  if (tableCount) tableCount.textContent = `${sorted.length} properties`;
+
+  let html = '';
+  pageItems.forEach((p) => {
+    const statusClass = p.status === 'For Sale' ? 'badge--warning' : p.status === 'Foreclosed' ? 'badge--danger' : p.status === 'Requires Survey' ? 'badge--info' : 'badge--success';
+    html += `<tr data-pid="${p.id || p._id}">
+      <td>${escapeHtml(p.parcel_id || '')}</td>
+      <td>${escapeHtml(p.name || '')}</td>
+      <td>${escapeHtml(p.address || '')}</td>
+      <td>${escapeHtml(p.type || '')}</td>
+      <td>${escapeHtml(p.owner_name || '')}</td>
+      <td>$${(Number(p.assessed_value) || 0).toLocaleString()}</td>
+      <td>$${(Number(p.annual_tax) || 0).toLocaleString()}</td>
+      <td><span class="badge ${statusClass}">${escapeHtml(p.status || '')}</span></td>
+    </tr>`;
+  });
+  propertyTableBody.innerHTML = html;
+
+  propertyTableBody.querySelectorAll('tr').forEach((row) => {
+    row.addEventListener('click', () => {
+      const pid = row.dataset.pid;
+      const prop = allProperties.find((p) => (p.id || p._id) === pid);
+      if (prop) renderPanel(prop);
+    });
+  });
+
+  if (tablePagination) {
+    let phtml = '';
+    phtml += `<button ${tablePage <= 1 ? 'disabled' : ''} data-page="${tablePage - 1}">&lt;</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+      if (totalPages > 7 && Math.abs(i - tablePage) > 2 && i !== 1 && i !== totalPages) {
+        if (i === 2 || i === totalPages - 1) phtml += '<span>…</span>';
+        continue;
+      }
+      phtml += `<button data-page="${i}" class="${i === tablePage ? 'active' : ''}">${i}</button>`;
+    }
+    phtml += `<button ${tablePage >= totalPages ? 'disabled' : ''} data-page="${tablePage + 1}">&gt;</button>`;
+    tablePagination.innerHTML = phtml;
+    tablePagination.querySelectorAll('button[data-page]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        tablePage = Number(btn.dataset.page);
+        renderTable(filteredProperties);
+      });
+    });
+  }
+}
+
+/* ── CSV Export ─────────────────────────────────────── */
+document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
+  const headers = ['Parcel ID', 'Name', 'Address', 'Type', 'Owner', 'Assessed Value', 'Annual Tax', 'Status', 'Zone'];
+  const rows = filteredProperties.map((p) => [
+    p.parcel_id || '', p.name || '', p.address || '', p.type || '',
+    p.owner_name || '', p.assessed_value || 0, p.annual_tax || 0, p.status || '', p.tax_zone || ''
+  ]);
+  let csv = headers.join(',') + '\n';
+  rows.forEach((r) => {
+    csv += r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sapa-properties-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV exported', 'success');
+});
+
+/* ── Keyboard Shortcuts ────────────────────────────── */
+const shortcutsOverlay = document.getElementById('shortcutsOverlay');
+
+document.getElementById('shortcutsHelp')?.addEventListener('click', () => {
+  shortcutsOverlay?.classList.toggle('hidden');
+});
+
+document.getElementById('closeShortcuts')?.addEventListener('click', () => {
+  shortcutsOverlay?.classList.add('hidden');
+});
+
+shortcutsOverlay?.addEventListener('click', (e) => {
+  if (e.target === shortcutsOverlay) shortcutsOverlay.classList.add('hidden');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select, [contenteditable]')) return;
+
+  switch (e.key.toLowerCase()) {
+    case '/':
+    case 's':
+      e.preventDefault();
+      searchInput?.focus();
+      break;
+    case 'n':
+      if (isStaff() && propertyModal) {
+        e.preventDefault();
+        propertyModal.classList.remove('hidden');
+      }
+      break;
+    case 'f':
+      e.preventDefault();
+      filterBar?.classList.toggle('hidden');
+      filterToggleBtn?.classList.toggle('btn-active');
+      break;
+    case 't':
+      e.preventDefault();
+      viewToggleBtn?.click();
+      break;
+    case 'l':
+      e.preventDefault();
+      legend?.classList.toggle('hidden');
+      break;
+    case '?':
+      e.preventDefault();
+      shortcutsOverlay?.classList.toggle('hidden');
+      break;
+  }
+});
+
+/* ── Preference Persistence ────────────────────────── */
+(function loadPreferences() {
+  if (localStorage.getItem('sapa_filters_open') === 'true') {
+    filterBar?.classList.remove('hidden');
+    filterToggleBtn?.classList.add('btn-active');
+  }
+  const savedSort = localStorage.getItem('sapa_table_sort');
+  if (savedSort) {
+    try { tableSort = JSON.parse(savedSort); } catch { /* ignore */ }
+  }
+})();
+
+window.addEventListener('beforeunload', () => {
+  localStorage.setItem('sapa_filters_open', filterBar && !filterBar.classList.contains('hidden') ? 'true' : 'false');
+  localStorage.setItem('sapa_table_sort', JSON.stringify(tableSort));
+});

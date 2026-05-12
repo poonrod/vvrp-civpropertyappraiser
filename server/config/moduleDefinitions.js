@@ -58,6 +58,7 @@ const MODULE_DEFINITIONS = [
   { key: 'districts', name: 'Neighborhood Districts', description: 'Named districts with boundaries and stats', category: 'map', defaultEnabled: false },
   { key: 'split_merge', name: 'Parcel Split & Merge', description: 'Split or merge parcels with history tracking', category: 'map', defaultEnabled: false },
   { key: 'proximity', name: 'Proximity Queries', description: 'Radius search and neighbor finder tools', category: 'map', defaultEnabled: false },
+  { key: 'map_labels', name: 'Map Labels', description: 'Show property names as labels on the map', category: 'map', defaultEnabled: false },
 
   // Integrations
   { key: 'fivem_bridge', name: 'FiveM Lua Bridge', description: 'REST API for in-game script lookups', category: 'integration', defaultEnabled: false },

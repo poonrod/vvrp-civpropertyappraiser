@@ -32,8 +32,88 @@
 
   <div class="map-toolbar">
     <input class="input-search" id="searchInput" type="search" autocomplete="off" placeholder="Search owner, parcel, address, postal code (e.g. 5000), business…" aria-label="Search properties" />
-    <button type="button" class="btn" id="legendToggle">Legend</button>
-    <button type="button" class="btn btn-accent" id="openRequestForm">Request Appraisal</button>
+    <button type="button" class="btn btn-sm" id="filterToggle" title="Advanced Filters">Filters</button>
+    <button type="button" class="btn btn-sm" id="viewToggle" title="Toggle Map/Table">Table</button>
+    <button type="button" class="btn btn-sm" id="legendToggle">Legend</button>
+    <button type="button" class="btn btn-accent btn-sm" id="openRequestForm">Request Appraisal</button>
+    <button type="button" class="btn btn-sm" id="shortcutsHelp" title="Keyboard shortcuts (?)">?</button>
+  </div>
+
+  <div class="filter-bar hidden" id="filterBar">
+    <div class="filter-bar__inner">
+      <div class="filter-group">
+        <span class="field-label">Type</span>
+        <label class="filter-check"><input type="checkbox" value="Residential" class="filter-type" checked /> Residential</label>
+        <label class="filter-check"><input type="checkbox" value="Commercial" class="filter-type" checked /> Commercial</label>
+        <label class="filter-check"><input type="checkbox" value="Government" class="filter-type" checked /> Government</label>
+        <label class="filter-check"><input type="checkbox" value="Vacant Land" class="filter-type" checked /> Vacant Land</label>
+      </div>
+      <div class="filter-group">
+        <span class="field-label">Status</span>
+        <select id="filterStatus" class="filter-select">
+          <option value="">All</option>
+          <option value="Owned">Owned</option>
+          <option value="For Sale">For Sale</option>
+          <option value="Foreclosed">Foreclosed</option>
+          <option value="Government Seized">Government Seized</option>
+          <option value="Requires Survey">Requires Survey</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="field-label">Zone</span>
+        <select id="filterZone" class="filter-select">
+          <option value="">All Zones</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="field-label">Value Range</span>
+        <input type="number" id="filterMinValue" placeholder="Min $" class="filter-input" />
+        <input type="number" id="filterMaxValue" placeholder="Max $" class="filter-input" />
+      </div>
+      <button type="button" class="btn btn-compact" id="clearFilters">Clear All</button>
+    </div>
+  </div>
+
+  <div class="table-view hidden" id="tableView">
+    <div class="table-view__header">
+      <span class="table-view__count" id="tableCount"></span>
+      <button type="button" class="btn btn-compact" id="exportCsvBtn">Export CSV</button>
+      <button type="button" class="btn btn-compact" id="backToMapBtn">Back to Map</button>
+    </div>
+    <div class="table-view__wrap">
+      <table class="property-table" id="propertyTable">
+        <thead>
+          <tr>
+            <th data-sort="parcel_id" class="sortable">Parcel</th>
+            <th data-sort="name" class="sortable">Name</th>
+            <th data-sort="address" class="sortable">Address</th>
+            <th data-sort="type" class="sortable">Type</th>
+            <th data-sort="owner_name" class="sortable">Owner</th>
+            <th data-sort="assessed_value" class="sortable">Value</th>
+            <th data-sort="annual_tax" class="sortable">Tax</th>
+            <th data-sort="status" class="sortable">Status</th>
+          </tr>
+        </thead>
+        <tbody id="propertyTableBody"></tbody>
+      </table>
+    </div>
+    <div class="table-pagination" id="tablePagination"></div>
+  </div>
+
+  <div id="shortcutsOverlay" class="modal hidden">
+    <div class="shortcuts-card">
+      <h3>Keyboard Shortcuts</h3>
+      <div class="shortcuts-grid">
+        <div class="shortcut-row"><kbd>S</kbd> or <kbd>/</kbd> Focus search</div>
+        <div class="shortcut-row"><kbd>N</kbd> New property (staff)</div>
+        <div class="shortcut-row"><kbd>F</kbd> Toggle filters</div>
+        <div class="shortcut-row"><kbd>T</kbd> Toggle table view</div>
+        <div class="shortcut-row"><kbd>L</kbd> Toggle legend</div>
+        <div class="shortcut-row"><kbd>Esc</kbd> Close panel/modal</div>
+        <div class="shortcut-row"><kbd>?</kbd> This help</div>
+      </div>
+      <button type="button" class="btn btn-compact" id="closeShortcuts">Close</button>
+    </div>
   </div>
 
   <main class="map-stage">
