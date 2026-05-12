@@ -524,6 +524,23 @@ if (user && (user.role === 'admin' || user.role === 'appraiser')) {
     draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false }
   });
   map.addControl(drawControl);
+
+  setTimeout(() => {
+    const labelMap = {
+      'leaflet-draw-draw-polygon': 'Draw Parcel',
+      'leaflet-draw-edit-edit': 'Edit',
+      'leaflet-draw-edit-remove': 'Delete'
+    };
+    Object.entries(labelMap).forEach(([cls, text]) => {
+      const el = document.querySelector(`.${cls}`);
+      if (el) {
+        const lbl = document.createElement('span');
+        lbl.className = 'draw-btn-label';
+        lbl.textContent = text;
+        el.appendChild(lbl);
+      }
+    });
+  }, 100);
 }
 
 propertyTypeSelect?.addEventListener('change', () => {

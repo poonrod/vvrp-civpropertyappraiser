@@ -2465,6 +2465,25 @@ kbd {
 }
 
 /* ── Map Labels ────────────────────────────────────── */
+/* Draw toolbar labels */
+.leaflet-draw-toolbar a {
+  position: relative;
+  width: auto !important;
+  min-width: 30px;
+  padding-right: 8px !important;
+}
+.draw-btn-label {
+  position: absolute;
+  left: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: #333;
+  pointer-events: none;
+}
+
 /* Zoom control labels */
 .leaflet-control-zoom a {
   display: flex !important;
