@@ -1125,7 +1125,7 @@ async function loadProperties(search = '') {
   if (q && filteredProperties.length > 0 && featureGroup.getLayers().length > 0) {
     try {
       const bounds = featureGroup.getBounds();
-      if (bounds.isValid()) map.fitBounds(bounds.pad(0.15), { maxZoom: 5 });
+      if (bounds.isValid()) map.fitBounds(bounds.pad(0.5), { maxZoom: 2 });
     } catch { /* ignore */ }
   }
 }
