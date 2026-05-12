@@ -1080,12 +1080,9 @@ async function loadProperties(search = '') {
     console.error('Properties API returned non-array', props);
     return;
   }
-  featureGroup.clearLayers();
-  props.forEach((p) => {
-    if (!p || !p.geojson) return;
-    const layer = L.geoJSON({ type: 'Feature', geometry: p.geojson }, { style: styleForProperty(p) }).addTo(featureGroup);
-    layer.on('click', () => renderPanel(p));
-  });
+  allProperties = props;
+  filteredProperties = applyFilters(allProperties);
+  renderMapFromProperties(filteredProperties);
 }
 
 async function maybeFlyToPostal(searchRaw) {
@@ -3105,8 +3102,8 @@ const filterMinValue = document.getElementById('filterMinValue');
 const filterMaxValue = document.getElementById('filterMaxValue');
 const clearFiltersBtn = document.getElementById('clearFilters');
 
-let allProperties = [];
-let filteredProperties = [];
+var allProperties = [];
+var filteredProperties = [];
 
 if (filterZone && taxPresets.length) {
   taxPresets.forEach((p) => {
