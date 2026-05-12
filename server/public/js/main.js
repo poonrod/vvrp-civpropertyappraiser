@@ -1084,6 +1084,12 @@ async function loadProperties(search = '') {
   allProperties = props;
   filteredProperties = applyFilters(allProperties);
   renderMapFromProperties(filteredProperties);
+  if (q && filteredProperties.length > 0 && featureGroup.getLayers().length > 0) {
+    try {
+      const bounds = featureGroup.getBounds();
+      if (bounds.isValid()) map.fitBounds(bounds.pad(0.15), { maxZoom: 5 });
+    } catch { /* ignore */ }
+  }
 }
 
 async function maybeFlyToPostal(searchRaw) {
