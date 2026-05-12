@@ -20,6 +20,32 @@ const router = express.Router();
 
 const STAFF = ['admin', 'appraiser', 'clerk'];
 
+function getCentroid(geojson) {
+  let coords;
+  if (geojson.type === 'Polygon') coords = geojson.coordinates[0];
+  else if (geojson.type === 'MultiPolygon') coords = geojson.coordinates[0][0];
+  else return null;
+  if (!coords || coords.length === 0) return null;
+  let cx = 0, cy = 0;
+  for (const c of coords) { cx += c[0]; cy += c[1]; }
+  return [cx / coords.length, cy / coords.length];
+}
+
+function pointInPolygon(point, geojson) {
+  let rings;
+  if (geojson.type === 'Polygon') rings = geojson.coordinates;
+  else if (geojson.type === 'MultiPolygon') rings = geojson.coordinates[0];
+  else return false;
+  const [px, py] = point;
+  const ring = rings[0];
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
 /* ── Photo Upload Config ───────────────────────────── */
 const storage = multer.diskStorage({
   destination: path.join(__dirname, '..', 'uploads', 'photos'),
@@ -609,6 +635,7 @@ router.post('/districts', requireAuth, requireRole('admin'), requireModule('dist
       geojson: req.body.geojson,
       color: req.body.color || '#3498db',
       tax_multiplier: Number(req.body.tax_multiplier) || 1.0,
+      hoa_fee: Number(req.body.hoa_fee) || 0,
       created_by: req.session.user.id
     });
     res.status(201).json(district);
@@ -625,10 +652,26 @@ router.put('/districts/:id', requireAuth, requireRole('admin'), requireModule('d
     if (req.body.description != null) update.description = req.body.description;
     if (req.body.color) update.color = req.body.color;
     if (req.body.tax_multiplier != null) update.tax_multiplier = Number(req.body.tax_multiplier);
+    if (req.body.hoa_fee != null) update.hoa_fee = Number(req.body.hoa_fee);
     if (req.body.geojson) update.geojson = req.body.geojson;
     const district = await District.findByIdAndUpdate(req.params.id, update, { new: true });
     if (!district) return res.status(404).json({ error: 'District not found' });
     res.json(district);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/districts/for-property/:propertyId', requireModule('districts'), async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.propertyId).lean();
+    if (!property || !property.geojson) return res.json(null);
+    const centroid = getCentroid(property.geojson);
+    if (!centroid) return res.json(null);
+    const districts = await District.find().lean();
+    for (const d of districts) {
+      if (!d.geojson) continue;
+      if (pointInPolygon(centroid, d.geojson)) return res.json(d);
+    }
+    res.json(null);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

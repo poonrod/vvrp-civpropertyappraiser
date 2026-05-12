@@ -1501,11 +1501,49 @@ requestForm?.addEventListener('submit', async (e) => {
 
 syncReqTypeFields();
 
+/* ── Geo helpers (client-side) ────────────────────── */
+function geoCentroid(geojson) {
+  let coords;
+  if (geojson.type === 'Polygon') coords = geojson.coordinates[0];
+  else if (geojson.type === 'MultiPolygon') coords = geojson.coordinates[0][0];
+  else return null;
+  if (!coords || !coords.length) return null;
+  let cx = 0, cy = 0;
+  for (const c of coords) { cx += c[0]; cy += c[1]; }
+  return [cx / coords.length, cy / coords.length];
+}
+function ptInPoly(pt, geojson) {
+  let rings;
+  if (geojson.type === 'Polygon') rings = geojson.coordinates;
+  else if (geojson.type === 'MultiPolygon') rings = geojson.coordinates[0];
+  else return false;
+  const [px, py] = pt;
+  const ring = rings[0];
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function findDistrictForProperty(p) {
+  if (!p.geojson || !loadedDistricts?.length) return null;
+  const centroid = geoCentroid(p.geojson);
+  if (!centroid) return null;
+  return loadedDistricts.find(d => d.geojson && ptInPoly(centroid, d.geojson)) || null;
+}
+
 /* ── Fees Preview (above tabs) ────────────────────── */
 function renderFeesPreview(p, moduleData) {
   const feesArea = document.getElementById('panelFees');
   if (!feesArea) return;
   const fees = [];
+
+  const district = findDistrictForProperty(p);
+  if (district && district.hoa_fee > 0 && p.type === 'Residential') {
+    fees.push({ label: `${district.name} HOA`, amount: district.hoa_fee, period: 'mo', status: 'Active' });
+  }
+
   if (moduleData.hoaFees?.length) {
     moduleData.hoaFees.forEach((h) => {
       fees.push({ label: h.association_name || 'HOA', amount: h.monthly_fee || 0, period: 'mo', status: h.status });
@@ -3225,20 +3263,27 @@ async function loadAnnotations() {
   } catch { /* annotations optional */ }
 }
 
+var loadedDistricts = [];
 async function loadDistricts() {
   if (!isModuleEnabled('districts')) return;
   try {
     const r = await fetch('/api/modules/districts', { credentials: 'same-origin' });
     if (!r.ok) return;
     const districts = await r.json();
+    loadedDistricts = districts;
     if (districtLayer) map.removeLayer(districtLayer);
     districtLayer = L.layerGroup();
     for (const d of districts) {
       if (!d.geojson) continue;
       const layer = L.geoJSON({ type: 'Feature', geometry: d.geojson }, {
-        style: { color: d.color || '#3498db', weight: 2, fillOpacity: 0.08, dashArray: '8 4' }
+        style: { color: d.color || '#3498db', weight: 2, fillOpacity: 0.04, fill: true, dashArray: '10 6' }
       });
-      layer.bindPopup(`<strong>${escapeHtml(d.name)}</strong><br>${escapeHtml(d.description)}`);
+      let tooltipText = d.name;
+      if (d.hoa_fee && d.hoa_fee > 0) tooltipText += `\nHOA: $${Number(d.hoa_fee).toLocaleString()}/mo`;
+      if (d.tax_multiplier && d.tax_multiplier !== 1) tooltipText += `\nTax: ${d.tax_multiplier}×`;
+      layer.bindTooltip(tooltipText, { sticky: true, className: 'district-tooltip', direction: 'top' });
+      layer.on('mouseover', () => { layer.setStyle({ fillOpacity: 0.15, weight: 3 }); });
+      layer.on('mouseout', () => { layer.setStyle({ fillOpacity: 0.04, weight: 2 }); });
       districtLayer.addLayer(layer);
     }
     districtLayer.addTo(map);
@@ -4000,6 +4045,7 @@ document.getElementById('saveDistrictBtn')?.addEventListener('click', async () =
         description: document.getElementById('districtDesc')?.value || '',
         color: document.getElementById('districtColor')?.value || '#3498db',
         tax_multiplier: Number(document.getElementById('districtTaxMult')?.value) || 1.0,
+        hoa_fee: Number(document.getElementById('districtHoaFee')?.value) || 0,
         geojson: pendingDistrictGeoJSON
       })
     });
@@ -4010,6 +4056,7 @@ document.getElementById('saveDistrictBtn')?.addEventListener('click', async () =
       pendingDistrictGeoJSON = null;
       document.getElementById('districtName').value = '';
       document.getElementById('districtDesc').value = '';
+      document.getElementById('districtHoaFee').value = '0';
       loadDistricts();
     } else {
       const err = await r.json().catch(() => ({}));

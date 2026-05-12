@@ -77,6 +77,7 @@
             <th>Name</th>
             <th>Description</th>
             <th>Tax Mult.</th>
+            <th>HOA Fee</th>
             <th>Created</th>
             <th></th>
           </tr>
@@ -88,6 +89,7 @@
             <td><strong><%= d.name %></strong></td>
             <td class="text-muted"><%= d.description || '—' %></td>
             <td><%= d.tax_multiplier || 1.0 %>&times;</td>
+            <td><%= d.hoa_fee ? '$' + d.hoa_fee.toLocaleString() + '/mo' : '—' %></td>
             <td class="text-muted"><%= d.created_at ? new Date(d.created_at).toLocaleDateString() : '—' %></td>
             <td>
               <form action="/api/modules/districts/<%= d._id %>" method="post" class="district-delete-form" data-id="<%= d._id %>">

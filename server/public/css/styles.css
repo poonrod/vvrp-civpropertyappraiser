@@ -2465,6 +2465,22 @@ kbd {
 }
 
 /* ── Map Labels ────────────────────────────────────── */
+/* District tooltip */
+.district-tooltip {
+  background: rgba(10, 12, 16, 0.88) !important;
+  backdrop-filter: blur(4px);
+  color: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: pre-line;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+}
+.district-tooltip::before { border-top-color: rgba(10, 12, 16, 0.88) !important; }
+
 /* Draw toolbar labels */
 .leaflet-draw-toolbar a {
   position: relative;

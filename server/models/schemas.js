@@ -348,6 +348,7 @@ const districtSchema = new Schema(
     geojson: { type: Schema.Types.Mixed, required: true },
     color: { type: String, default: '#3498db' },
     tax_multiplier: { type: Number, default: 1.0 },
+    hoa_fee: { type: Number, default: 0 },
     created_by: { type: Schema.Types.ObjectId, ref: 'User', required: true }
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
