@@ -2389,16 +2389,20 @@ kbd {
 }
 
 .map-label-text {
-  display: inline-block;
-  padding: 1px 5px;
-  font-size: 9px;
+  display: block;
+  max-width: 90px;
+  padding: 2px 5px;
+  font-size: 8px;
   font-weight: 700;
-  line-height: 14px;
+  line-height: 11px;
   color: #fff;
-  background: rgba(0, 0, 0, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 3px;
-  white-space: nowrap;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: center;
   text-shadow: 0 1px 2px rgba(0,0,0,0.9);
   pointer-events: none;
   letter-spacing: 0.02em;
