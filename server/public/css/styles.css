@@ -2221,3 +2221,60 @@ kbd {
   resize: vertical;
   min-height: 48px;
 }
+
+/* ── Seasonal Banner ───────────────────────────────── */
+.seasonal-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #8e44ad 0%, #3498db 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.seasonal-banner__text {
+  flex: 1;
+  text-align: center;
+}
+
+.seasonal-banner__close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.seasonal-banner__close:hover {
+  color: #fff;
+}
+
+.module-list-item--danger {
+  border-left: 3px solid #e74c3c;
+  padding-left: 8px;
+}
+
+.btn-danger {
+  background: #c0392b;
+  color: #fff;
+  border-color: #a93226;
+}
+
+.btn-danger:hover {
+  background: #e74c3c;
+}

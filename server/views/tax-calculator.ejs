@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <title>Tax Calculator — SAPA</title>
+  <style>
+    .tax-wrap {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    .tax-header {
+      margin-bottom: 1.75rem;
+    }
+    .tax-header h1 {
+      font-size: 1.5rem;
+      color: var(--gold);
+      margin: 0 0 .25rem;
+    }
+    .tax-header p {
+      color: var(--text-muted);
+      margin: 0;
+      font-size: .9rem;
+    }
+    .tax-form {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .tax-form label {
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+      font-size: .85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .tax-form input,
+    .tax-form select {
+      padding: .6rem .9rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-deep);
+      color: var(--text);
+      font-size: .95rem;
+    }
+    .tax-form input::placeholder { color: var(--text-muted); }
+    .tax-form .btn-calculate {
+      padding: .7rem;
+      border-radius: 6px;
+      border: none;
+      background: var(--gold);
+      color: var(--bg-deep);
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: .5rem;
+    }
+    .tax-form .btn-calculate:hover { opacity: .85; }
+    .tax-results {
+      margin-top: 1.5rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      display: none;
+    }
+    .tax-results.visible { display: block; }
+    .tax-results h2 {
+      font-size: 1.1rem;
+      color: var(--gold);
+      margin: 0 0 1rem;
+    }
+    .tax-results__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+    }
+    .tax-results__item {
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+    }
+    .tax-results__label {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-muted);
+    }
+    .tax-results__value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .tax-results__annual {
+      grid-column: 1 / -1;
+      margin-top: .75rem;
+      padding-top: .75rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+    .tax-results__annual .tax-results__value {
+      font-size: 1.4rem;
+      color: var(--gold);
+    }
+    .tax-results__formula {
+      grid-column: 1 / -1;
+      margin-top: .5rem;
+      font-size: .8rem;
+      color: var(--text-muted);
+      text-align: center;
+      font-style: italic;
+    }
+    .tax-error {
+      margin-top: 1rem;
+      padding: .75rem;
+      border-radius: 6px;
+      background: rgba(220,50,50,.1);
+      border: 1px solid rgba(220,50,50,.3);
+      color: #e06060;
+      font-size: .85rem;
+      display: none;
+    }
+    .tax-error.visible { display: block; }
+    .back-link {
+      display: inline-block;
+      margin-top: 1.75rem;
+      color: var(--gold);
+      text-decoration: none;
+      font-size: .9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body style="background:var(--bg-deep); min-height:100vh;">
+  <div class="tax-wrap">
+    <div class="tax-header">
+      <h1>Property Tax Calculator</h1>
+      <p>Estimate annual property taxes based on assessed value, type, and zone.</p>
+    </div>
+
+    <div class="tax-form">
+      <label>
+        Assessed Value ($)
+        <input type="number" id="valueInput" placeholder="e.g. 250000" min="0" step="1" />
+      </label>
+      <label>
+        Property Type
+        <select id="typeSelect">
+          <option value="Residential">Residential</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Government">Government</option>
+          <option value="Vacant Land">Vacant Land</option>
+        </select>
+      </label>
+      <label>
+        Tax Zone
+        <select id="zoneSelect">
+          <option value="">— None / Default —</option>
+        </select>
+      </label>
+      <button type="button" class="btn-calculate" id="calcBtn">Calculate Tax</button>
+    </div>
+
+    <div class="tax-error" id="errorBox"></div>
+
+    <div class="tax-results" id="resultsBox">
+      <h2>Tax Estimate</h2>
+      <div class="tax-results__grid">
+        <div class="tax-results__item">
+          <span class="tax-results__label">Assessed Value</span>
+          <span class="tax-results__value" id="resValue">—</span>
+        </div>
+        <div class="tax-results__item">
+          <span class="tax-results__label">Property Type</span>
+          <span class="tax-results__value" id="resType">—</span>
+        </div>
+        <div class="tax-results__item">
+          <span class="tax-results__label">Zone</span>
+          <span class="tax-results__value" id="resZone">—</span>
+        </div>
+        <div class="tax-results__item">
+          <span class="tax-results__label">Tax Rate</span>
+          <span class="tax-results__value" id="resRate">—</span>
+        </div>
+        <div class="tax-results__item tax-results__annual">
+          <span class="tax-results__label">Annual Tax</span>
+          <span class="tax-results__value" id="resAnnual">—</span>
+        </div>
+        <div class="tax-results__formula" id="resFormula"></div>
+      </div>
+    </div>
+
+    <a href="/" class="back-link">← Back to Map</a>
+  </div>
+
+  <script>
+  (function() {
+    const valueInput = document.getElementById('valueInput');
+    const typeSelect = document.getElementById('typeSelect');
+    const zoneSelect = document.getElementById('zoneSelect');
+    const calcBtn = document.getElementById('calcBtn');
+    const resultsBox = document.getElementById('resultsBox');
+    const errorBox = document.getElementById('errorBox');
+
+    function formatCurrency(v) {
+      return '$' + Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    calcBtn.addEventListener('click', async function() {
+      const value = valueInput.value.trim();
+      const type = typeSelect.value;
+      const zone = zoneSelect.value;
+
+      errorBox.classList.remove('visible');
+      resultsBox.classList.remove('visible');
+
+      if (!value || Number(value) <= 0) {
+        errorBox.textContent = 'Please enter a valid assessed value greater than 0.';
+        errorBox.classList.add('visible');
+        return;
+      }
+
+      const params = new URLSearchParams({ value, type });
+      if (zone) params.set('zone', zone);
+
+      try {
+        const res = await fetch('/api/modules/tax-calculator/estimate?' + params.toString());
+        if (!res.ok) {
+          const err = await res.json().catch(function() { return {}; });
+          throw new Error(err.error || 'Calculation failed');
+        }
+        const data = await res.json();
+
+        document.getElementById('resValue').textContent = formatCurrency(data.assessed_value || value);
+        document.getElementById('resType').textContent = data.type || type;
+        document.getElementById('resZone').textContent = data.zone || zone || 'Default';
+        document.getElementById('resRate').textContent = (data.rate != null ? data.rate + '%' : '—');
+        document.getElementById('resAnnual').textContent = formatCurrency(data.annual_tax || 0);
+        document.getElementById('resFormula').textContent = data.formula || (formatCurrency(data.assessed_value || value) + ' × ' + (data.rate || 0) + '% = ' + formatCurrency(data.annual_tax || 0));
+
+        resultsBox.classList.add('visible');
+      } catch (e) {
+        errorBox.textContent = e.message || 'Unable to calculate. Please try again.';
+        errorBox.classList.add('visible');
+      }
+    });
+
+    valueInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') calcBtn.click();
+    });
+  })();
+  </script>
+</body>
+</html>

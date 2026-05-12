@@ -342,6 +342,18 @@ router.get('/auctions', requireModule('auctions'), async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/properties/:id/auctions', requireModule('auctions'), async (req, res) => {
+  try {
+    const auctions = await Auction.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
+    for (const a of auctions) {
+      a.bid_count = await AuctionBid.countDocuments({ auction_id: a._id });
+      const topBid = await AuctionBid.findOne({ auction_id: a._id }).sort({ amount: -1 }).lean();
+      a.current_bid = topBid ? topBid.amount : null;
+    }
+    res.json(auctions);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/properties/:id/auctions', requireAuth, requireRole('admin'), requireModule('auctions'), async (req, res) => {
   try {
     const auction = await Auction.create({
@@ -853,9 +865,36 @@ router.get('/gazette/generate', requireAuth, requireRole(...STAFF), requireModul
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/gazette', requireModule('gazette'), async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentSales = await PropertyTransaction.find({ transfer_date: { $gte: thirtyDaysAgo } })
+      .sort({ sale_price: -1 }).limit(10).populate('property_id', 'name parcel_id').lean();
+    const newProps = await Property.find({ created_at: { $gte: thirtyDaysAgo } }).sort({ created_at: -1 }).limit(10).lean();
+    const total = await Property.countDocuments();
+    const forSale = await Property.countDocuments({ status: 'For Sale' });
+    const agg = await Property.aggregate([{ $group: { _id: null, avg: { $avg: '$assessed_value' } } }]);
+    res.json({
+      generated_at: new Date(),
+      summary: `Property gazette covering the last 30 days. ${recentSales.length} sales recorded, ${newProps.length} new properties added.`,
+      recent_sales: recentSales.map((t) => ({ property_name: t.property_id?.name, parcel_id: t.property_id?.parcel_id, sale_price: t.sale_price })),
+      new_properties: newProps.map((p) => ({ name: p.name, parcel_id: p.parcel_id, type: p.type })),
+      stats: { total, for_sale: forSale, avg_value: Math.round(agg[0]?.avg || 0) }
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 /* ═══════════════════════════════════════════════════
    MODULE: seasonal_events -- Seasonal Events
    ═══════════════════════════════════════════════════ */
+router.get('/seasonal-events/active', requireModule('seasonal_events'), async (req, res) => {
+  try {
+    const now = new Date();
+    const events = await SeasonalEvent.find({ start_date: { $lte: now }, end_date: { $gte: now } }).sort({ start_date: -1 }).lean();
+    res.json(events);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/events', requireModule('seasonal_events'), async (req, res) => {
   try {
     const events = await SeasonalEvent.find().sort({ start_date: -1 }).lean();

@@ -50,4 +50,18 @@ router.get('/', async (req, res) => {
   res.render('index', { config, taxRates: DEFAULT_TAX_RATES, taxPresets, pricePerSqft, modules: res.locals.modules || {} });
 });
 
+const { requireModule } = require('../middleware/moduleMiddleware');
+
+router.get('/public-portal', requireModule('public_portal'), (req, res) => {
+  res.render('public-portal', { csrfToken: req.csrfToken() });
+});
+
+router.get('/for-sale', requireModule('for_sale_listings'), (req, res) => {
+  res.render('for-sale', { csrfToken: req.csrfToken() });
+});
+
+router.get('/tax-calculator', requireModule('tax_calculator'), (req, res) => {
+  res.render('tax-calculator', { csrfToken: req.csrfToken() });
+});
+
 module.exports = router;

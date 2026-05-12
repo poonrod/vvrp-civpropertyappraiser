@@ -36,6 +36,9 @@
     <button type="button" class="btn btn-sm" id="viewToggle" title="Toggle Map/Table">Table</button>
     <button type="button" class="btn btn-sm" id="legendToggle">Legend</button>
     <button type="button" class="btn btn-accent btn-sm" id="openRequestForm">Request Appraisal</button>
+    <button type="button" class="btn btn-sm" id="bookmarkBtn" title="Save/load views" style="display:none">Views</button>
+    <button type="button" class="btn btn-sm" id="leaderboardBtn" title="Leaderboard" style="display:none">Board</button>
+    <button type="button" class="btn btn-sm" id="gazetteBtn" title="Gazette" style="display:none">Gazette</button>
     <button type="button" class="btn btn-sm" id="shortcutsHelp" title="Keyboard shortcuts (?)">?</button>
   </div>
 
@@ -99,6 +102,36 @@
     </div>
     <div class="table-pagination" id="tablePagination"></div>
   </div>
+
+  <div id="leaderboardOverlay" class="modal hidden">
+    <div class="shortcuts-card" style="max-width:500px">
+      <h3>Appraiser Leaderboard</h3>
+      <div id="leaderboardContent"><p class="module-empty">Loading...</p></div>
+      <button type="button" class="btn btn-compact" id="closeLeaderboard">Close</button>
+    </div>
+  </div>
+
+  <div id="gazetteOverlay" class="modal hidden">
+    <div class="shortcuts-card" style="max-width:600px;max-height:80vh;overflow:auto">
+      <h3>Property Gazette</h3>
+      <div id="gazetteContent"><p class="module-empty">Loading...</p></div>
+      <button type="button" class="btn btn-compact" id="closeGazette">Close</button>
+    </div>
+  </div>
+
+  <div id="bookmarkOverlay" class="modal hidden">
+    <div class="shortcuts-card" style="max-width:400px">
+      <h3>Saved Views</h3>
+      <div id="bookmarkList"><p class="module-empty">Loading...</p></div>
+      <div class="module-form-body" style="margin-top:12px">
+        <input type="text" id="bookmarkNameInput" placeholder="View name" />
+        <button type="button" class="btn btn-compact btn-primary" id="saveBookmarkBtn">Save Current View</button>
+      </div>
+      <button type="button" class="btn btn-compact" id="closeBookmark" style="margin-top:12px">Close</button>
+    </div>
+  </div>
+
+  <div class="seasonal-banner hidden" id="seasonalBanner"></div>
 
   <div id="shortcutsOverlay" class="modal hidden">
     <div class="shortcuts-card">

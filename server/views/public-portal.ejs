@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <title>Public Property Portal — SAPA</title>
+  <style>
+    .portal-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    .portal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .portal-header h1 {
+      font-size: 1.5rem;
+      color: var(--gold);
+      margin: 0;
+    }
+    .portal-search {
+      display: flex;
+      gap: .5rem;
+      width: 100%;
+      max-width: 500px;
+    }
+    .portal-search input {
+      flex: 1;
+      padding: .6rem .9rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text);
+      font-size: .95rem;
+    }
+    .portal-search input::placeholder { color: var(--text-muted); }
+    .portal-search button {
+      padding: .6rem 1.2rem;
+      border-radius: 6px;
+      border: none;
+      background: var(--gold);
+      color: var(--bg-deep);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .portal-search button:hover { opacity: .85; }
+    .portal-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-surface);
+    }
+    .portal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+    .portal-table th,
+    .portal-table td {
+      padding: .65rem .9rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .portal-table th {
+      background: var(--bg-deep);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: .75rem;
+      letter-spacing: .04em;
+    }
+    .portal-table td { color: var(--text); }
+    .portal-table tr:last-child td { border-bottom: none; }
+    .portal-table tr:hover td { background: rgba(255,255,255,.03); }
+    .portal-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      margin-top: 1.25rem;
+    }
+    .portal-pagination button {
+      padding: .45rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .portal-pagination button:disabled {
+      opacity: .4;
+      cursor: default;
+    }
+    .portal-pagination span { color: var(--text-muted); font-size: .85rem; }
+    .portal-empty {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 1.5rem;
+      color: var(--gold);
+      text-decoration: none;
+      font-size: .9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body style="background:var(--bg-deep); min-height:100vh;">
+  <div class="portal-wrap">
+    <div class="portal-header">
+      <h1>Public Property Portal</h1>
+    </div>
+
+    <div class="portal-search">
+      <input type="search" id="searchInput" placeholder="Search by parcel, name, address…" autocomplete="off" />
+      <button type="button" id="searchBtn">Search</button>
+    </div>
+
+    <div class="portal-table-wrap" style="margin-top:1.25rem;">
+      <table class="portal-table">
+        <thead>
+          <tr>
+            <th>Parcel</th>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="6" class="portal-empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="portal-pagination" id="pagination"></div>
+
+    <a href="/" class="back-link">← Back to Map</a>
+  </div>
+
+  <script>
+  (function() {
+    const tbody = document.getElementById('tableBody');
+    const pagination = document.getElementById('pagination');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    let currentPage = 1;
+    const limit = 20;
+
+    function formatCurrency(v) {
+      if (!v && v !== 0) return '—';
+      return '$' + Number(v).toLocaleString();
+    }
+
+    async function fetchProperties(page, search) {
+      const params = new URLSearchParams({ page, limit });
+      if (search) params.set('search', search);
+      try {
+        const res = await fetch('/api/modules/public-properties?' + params.toString());
+        if (!res.ok) throw new Error('Failed to load');
+        return await res.json();
+      } catch (e) {
+        return { properties: [], total: 0 };
+      }
+    }
+
+    function renderTable(properties) {
+      if (!properties.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="portal-empty">No properties found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = properties.map(function(p) {
+        return '<tr>' +
+          '<td>' + (p.parcel_id || '—') + '</td>' +
+          '<td>' + (p.name || '—') + '</td>' +
+          '<td>' + (p.address || '—') + '</td>' +
+          '<td>' + (p.type || '—') + '</td>' +
+          '<td>' + formatCurrency(p.assessed_value) + '</td>' +
+          '<td>' + (p.status || '—') + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function renderPagination(total) {
+      const pages = Math.ceil(total / limit) || 1;
+      pagination.innerHTML =
+        '<button id="prevBtn" ' + (currentPage <= 1 ? 'disabled' : '') + '>← Prev</button>' +
+        '<span>Page ' + currentPage + ' of ' + pages + '</span>' +
+        '<button id="nextBtn" ' + (currentPage >= pages ? 'disabled' : '') + '>Next →</button>';
+      document.getElementById('prevBtn').addEventListener('click', function() {
+        if (currentPage > 1) { currentPage--; load(); }
+      });
+      document.getElementById('nextBtn').addEventListener('click', function() {
+        if (currentPage < pages) { currentPage++; load(); }
+      });
+    }
+
+    async function load() {
+      const search = searchInput.value.trim();
+      const data = await fetchProperties(currentPage, search);
+      renderTable(data.properties || []);
+      renderPagination(data.total || 0);
+    }
+
+    searchBtn.addEventListener('click', function() { currentPage = 1; load(); });
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { currentPage = 1; load(); }
+    });
+
+    load();
+  })();
+  </script>
+</body>
+</html>

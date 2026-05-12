@@ -1549,6 +1549,18 @@ async function loadModuleData(propertyId) {
         .then((r) => r.ok ? r.json() : []).then((d) => { data.disputes = d; }).catch(() => { data.disputes = []; })
     );
   }
+  if (isModuleEnabled('eminent_domain')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/eminent-domain`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.eminentDomain = d; }).catch(() => { data.eminentDomain = []; })
+    );
+  }
+  if (isModuleEnabled('auctions')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/auctions`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.auctions = d; }).catch(() => { data.auctions = []; })
+    );
+  }
 
   await Promise.all(fetches);
   return data;
@@ -2797,6 +2809,93 @@ function renderModuleSections(p, moduleData, container) {
       if (r.ok) { showToast('Dispute filed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
     });
   }
+
+  // Eminent Domain
+  if (isModuleEnabled('eminent_domain') && moduleData.eminentDomain) {
+    const items = Array.isArray(moduleData.eminentDomain) ? moduleData.eminentDomain : [];
+    let html = `<div class="module-section"><h4 class="module-section__title">Eminent Domain ${items.length ? `<span class="badge badge--danger">${items.length}</span>` : ''}</h4>`;
+    if (items.length > 0) {
+      html += '<div class="module-list">';
+      items.forEach((ed) => {
+        const cls = ed.stage === 'Acquired' ? 'badge--danger' : ed.stage === 'Rejected' ? 'badge--success' : ed.stage === 'Council Vote' ? 'badge--warning' : 'badge--info';
+        html += `<div class="module-list-item"><span><strong>${escapeHtml(ed.stage)}</strong> — ${escapeHtml(ed.reason || '')}</span>
+          <span class="text-muted">Offered: $${Number(ed.offered_amount || 0).toLocaleString()} | Votes: ${ed.vote_yes || 0} Y / ${ed.vote_no || 0} N</span>
+          <span class="badge ${cls}">${ed.stage}</span>
+          ${isStaff() && user?.role === 'admin' && ed.stage !== 'Acquired' && ed.stage !== 'Rejected' ? `<button class="btn btn-compact advance-ed-btn" data-id="${ed._id}">Advance Stage</button>` : ''}
+        </div>`;
+      });
+      html += '</div>';
+    } else { html += '<p class="module-empty">No eminent domain cases</p>'; }
+    if (isStaff() && user?.role === 'admin') {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">File ED Case</summary><div class="module-form-body">
+        <textarea class="ed-reason-input" placeholder="Reason for acquisition" rows="2"></textarea>
+        <input type="number" class="ed-offer-input" placeholder="Offered amount ($)" step="0.01" />
+        <button class="btn btn-compact btn-primary add-ed-btn" data-property="${p.id}">File</button></div></details>`;
+    }
+    html += '</div>';
+    container.insertAdjacentHTML('beforeend', html);
+    container.querySelectorAll('.advance-ed-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/eminent-domain/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ advance: true })
+        });
+        if (r.ok) { showToast('Stage advanced', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+    container.querySelector('.add-ed-btn')?.addEventListener('click', async () => {
+      const r = await fetch(`/api/modules/properties/${p.id}/eminent-domain`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ reason: container.querySelector('.ed-reason-input')?.value, offered_amount: container.querySelector('.ed-offer-input')?.value })
+      });
+      if (r.ok) { showToast('ED case filed', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Auctions
+  if (isModuleEnabled('auctions') && moduleData.auctions) {
+    const items = Array.isArray(moduleData.auctions) ? moduleData.auctions : [];
+    const active = items.filter((a) => a.status === 'Active' || a.status === 'Open');
+    let html = `<div class="module-section"><h4 class="module-section__title">Auctions ${active.length ? `<span class="badge badge--warning">${active.length} active</span>` : ''}</h4>`;
+    if (items.length > 0) {
+      html += '<div class="module-list">';
+      items.forEach((a) => {
+        const cls = a.status === 'Active' || a.status === 'Open' ? 'badge--warning' : a.status === 'Sold' ? 'badge--success' : a.status === 'Cancelled' ? 'badge--danger' : 'badge--info';
+        const endDate = a.end_date ? new Date(a.end_date).toLocaleDateString() : '—';
+        html += `<div class="module-list-item"><span>Starting: <strong>$${Number(a.starting_bid || 0).toLocaleString()}</strong> ${a.current_bid ? '| Current: $' + Number(a.current_bid).toLocaleString() : ''}</span>
+          <span class="text-muted">Ends: ${endDate} | Bids: ${a.bid_count || 0}</span>
+          <span class="badge ${cls}">${a.status}</span>
+          ${isStaff() && (a.status === 'Active' || a.status === 'Open') ? `<button class="btn btn-compact cancel-auction-btn" data-id="${a._id}">Cancel</button>` : ''}
+        </div>`;
+      });
+      html += '</div>';
+    } else { html += '<p class="module-empty">No auctions</p>'; }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Create Auction</summary><div class="module-form-body">
+        <input type="number" class="auc-start-input" placeholder="Starting bid ($)" step="0.01" />
+        <input type="datetime-local" class="auc-end-input" />
+        <textarea class="auc-desc-input" placeholder="Description (optional)" rows="2"></textarea>
+        <button class="btn btn-compact btn-primary add-auc-btn" data-property="${p.id}">Create</button></div></details>`;
+    }
+    html += '</div>';
+    container.insertAdjacentHTML('beforeend', html);
+    container.querySelectorAll('.cancel-auction-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/auctions/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Cancelled' })
+        });
+        if (r.ok) { showToast('Auction cancelled', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+    container.querySelector('.add-auc-btn')?.addEventListener('click', async () => {
+      const r = await fetch(`/api/modules/properties/${p.id}/auctions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ starting_bid: container.querySelector('.auc-start-input')?.value, end_date: container.querySelector('.auc-end-input')?.value, description: container.querySelector('.auc-desc-input')?.value })
+      });
+      if (r.ok) { showToast('Auction created', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
 }
 
 /* ── Modal Handling: Escape & Click-Outside ────────── */
@@ -3242,3 +3341,164 @@ window.addEventListener('beforeunload', () => {
   localStorage.setItem('sapa_filters_open', filterBar && !filterBar.classList.contains('hidden') ? 'true' : 'false');
   localStorage.setItem('sapa_table_sort', JSON.stringify(tableSort));
 });
+
+/* ── Bookmarks / Saved Views ───────────────────────── */
+const bookmarkBtn = document.getElementById('bookmarkBtn');
+const bookmarkOverlay = document.getElementById('bookmarkOverlay');
+const bookmarkList = document.getElementById('bookmarkList');
+
+if (isModuleEnabled('bookmarks')) {
+  if (bookmarkBtn) bookmarkBtn.style.display = '';
+}
+
+bookmarkBtn?.addEventListener('click', async () => {
+  bookmarkOverlay?.classList.remove('hidden');
+  try {
+    const r = await fetch('/api/modules/bookmarks', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error();
+    const views = await r.json();
+    if (!views.length) {
+      bookmarkList.innerHTML = '<p class="module-empty">No saved views</p>';
+    } else {
+      bookmarkList.innerHTML = views.map((v) =>
+        `<div class="module-list-item" style="cursor:pointer" data-lat="${v.center_lat}" data-lng="${v.center_lng}" data-zoom="${v.zoom}">
+          <span><strong>${escapeHtml(v.name)}</strong></span>
+          <span class="text-muted">Zoom: ${v.zoom}</span>
+          <button class="btn btn-compact btn-danger delete-bookmark-btn" data-id="${v._id}" title="Delete">&times;</button>
+        </div>`
+      ).join('');
+      bookmarkList.querySelectorAll('.module-list-item').forEach((el) => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.delete-bookmark-btn')) return;
+          map.setView([Number(el.dataset.lat), Number(el.dataset.lng)], Number(el.dataset.zoom));
+          bookmarkOverlay?.classList.add('hidden');
+        });
+      });
+      bookmarkList.querySelectorAll('.delete-bookmark-btn').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const r = await fetch(`/api/modules/bookmarks/${btn.dataset.id}`, {
+            method: 'DELETE', headers: { 'CSRF-Token': csrfToken }, credentials: 'same-origin'
+          });
+          if (r.ok) { btn.closest('.module-list-item')?.remove(); showToast('View deleted', 'success'); }
+        });
+      });
+    }
+  } catch { bookmarkList.innerHTML = '<p class="module-empty">Failed to load</p>'; }
+});
+
+document.getElementById('saveBookmarkBtn')?.addEventListener('click', async () => {
+  const name = document.getElementById('bookmarkNameInput')?.value;
+  if (!name) { showToast('Enter a name', 'error'); return; }
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  const r = await fetch('/api/modules/bookmarks', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+    body: JSON.stringify({ name, center_lat: center.lat, center_lng: center.lng, zoom })
+  });
+  if (r.ok) { showToast('View saved', 'success'); document.getElementById('bookmarkNameInput').value = ''; bookmarkBtn?.click(); }
+  else showToast('Failed', 'error');
+});
+
+document.getElementById('closeBookmark')?.addEventListener('click', () => bookmarkOverlay?.classList.add('hidden'));
+bookmarkOverlay?.addEventListener('click', (e) => { if (e.target === bookmarkOverlay) bookmarkOverlay.classList.add('hidden'); });
+
+/* ── Leaderboard ───────────────────────────────────── */
+const leaderboardBtn = document.getElementById('leaderboardBtn');
+const leaderboardOverlay = document.getElementById('leaderboardOverlay');
+const leaderboardContent = document.getElementById('leaderboardContent');
+
+if (isModuleEnabled('leaderboard') && isStaff()) {
+  if (leaderboardBtn) leaderboardBtn.style.display = '';
+}
+
+leaderboardBtn?.addEventListener('click', async () => {
+  leaderboardOverlay?.classList.remove('hidden');
+  try {
+    const r = await fetch('/api/modules/leaderboard/all-time', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    if (!data.length) {
+      leaderboardContent.innerHTML = '<p class="module-empty">No data yet</p>';
+    } else {
+      let html = '<div class="module-list">';
+      data.forEach((s, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+        html += `<div class="module-list-item">
+          <span><strong>${medal} ${escapeHtml(s.username || s.user_id || 'Unknown')}</strong></span>
+          <span class="text-muted">Properties: ${s.properties_surveyed || 0} | Edits: ${s.edits || 0} | Sales: ${s.sales_recorded || 0}</span>
+        </div>`;
+      });
+      html += '</div>';
+      leaderboardContent.innerHTML = html;
+    }
+  } catch { leaderboardContent.innerHTML = '<p class="module-empty">Failed to load</p>'; }
+});
+
+document.getElementById('closeLeaderboard')?.addEventListener('click', () => leaderboardOverlay?.classList.add('hidden'));
+leaderboardOverlay?.addEventListener('click', (e) => { if (e.target === leaderboardOverlay) leaderboardOverlay.classList.add('hidden'); });
+
+/* ── Gazette ───────────────────────────────────────── */
+const gazetteBtn = document.getElementById('gazetteBtn');
+const gazetteOverlay = document.getElementById('gazetteOverlay');
+const gazetteContent = document.getElementById('gazetteContent');
+
+if (isModuleEnabled('gazette')) {
+  if (gazetteBtn) gazetteBtn.style.display = '';
+}
+
+gazetteBtn?.addEventListener('click', async () => {
+  gazetteOverlay?.classList.remove('hidden');
+  try {
+    const r = await fetch('/api/modules/gazette', { credentials: 'same-origin' });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    let html = '<div style="font-size:13px;color:var(--text-muted)">';
+    html += `<p><strong>Generated:</strong> ${data.generated_at ? new Date(data.generated_at).toLocaleDateString() : 'Now'}</p>`;
+    if (data.summary) {
+      html += `<div style="margin:12px 0"><strong>Summary</strong><p>${escapeHtml(data.summary)}</p></div>`;
+    }
+    if (data.recent_sales?.length) {
+      html += '<div style="margin:12px 0"><strong>Recent Sales</strong><div class="module-list">';
+      data.recent_sales.forEach((s) => {
+        html += `<div class="module-list-item"><span>${escapeHtml(s.property_name || s.parcel_id || '?')} — $${Number(s.sale_price || 0).toLocaleString()}</span></div>`;
+      });
+      html += '</div></div>';
+    }
+    if (data.new_properties?.length) {
+      html += '<div style="margin:12px 0"><strong>New Properties</strong><div class="module-list">';
+      data.new_properties.forEach((p) => {
+        html += `<div class="module-list-item"><span>${escapeHtml(p.name || p.parcel_id || '?')} — ${escapeHtml(p.type || '')}</span></div>`;
+      });
+      html += '</div></div>';
+    }
+    if (data.stats) {
+      html += `<div style="margin:12px 0"><strong>Stats</strong><p>Total properties: ${data.stats.total || 0} | For sale: ${data.stats.for_sale || 0} | Avg value: $${Number(data.stats.avg_value || 0).toLocaleString()}</p></div>`;
+    }
+    html += '</div>';
+    gazetteContent.innerHTML = html;
+  } catch { gazetteContent.innerHTML = '<p class="module-empty">Failed to load gazette</p>'; }
+});
+
+document.getElementById('closeGazette')?.addEventListener('click', () => gazetteOverlay?.classList.add('hidden'));
+gazetteOverlay?.addEventListener('click', (e) => { if (e.target === gazetteOverlay) gazetteOverlay.classList.add('hidden'); });
+
+/* ── Seasonal Events Banner ────────────────────────── */
+const seasonalBanner = document.getElementById('seasonalBanner');
+
+if (isModuleEnabled('seasonal_events') && seasonalBanner) {
+  (async () => {
+    try {
+      const r = await fetch('/api/modules/seasonal-events/active', { credentials: 'same-origin' });
+      if (!r.ok) return;
+      const events = await r.json();
+      if (events.length > 0) {
+        const ev = events[0];
+        seasonalBanner.innerHTML = `<span class="seasonal-banner__text">${escapeHtml(ev.name)} — ${escapeHtml(ev.description || '')} ${ev.discount_percent ? '(' + ev.discount_percent + '% discount!)' : ''}</span>
+          <button class="seasonal-banner__close" id="closeSeasonalBanner">&times;</button>`;
+        seasonalBanner.classList.remove('hidden');
+        document.getElementById('closeSeasonalBanner')?.addEventListener('click', () => seasonalBanner.classList.add('hidden'));
+      }
+    } catch { /* optional */ }
+  })();
+}

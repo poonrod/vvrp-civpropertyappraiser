@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="<%= csrfToken %>" />
+  <link rel="stylesheet" href="/public/css/styles.css" />
+  <title>Properties For Sale — SAPA</title>
+  <style>
+    .sale-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    .sale-header {
+      margin-bottom: 1.75rem;
+    }
+    .sale-header h1 {
+      font-size: 1.5rem;
+      color: var(--gold);
+      margin: 0 0 .25rem;
+    }
+    .sale-header p {
+      color: var(--text-muted);
+      margin: 0;
+      font-size: .9rem;
+    }
+    .sale-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .sale-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      transition: border-color .15s;
+    }
+    .sale-card:hover { border-color: var(--gold); }
+    .sale-card__name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0;
+    }
+    .sale-card__address {
+      color: var(--text-muted);
+      font-size: .85rem;
+    }
+    .sale-card__details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem .75rem;
+      margin-top: .5rem;
+      font-size: .85rem;
+    }
+    .sale-card__detail {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .sale-card__detail-label {
+      color: var(--text-muted);
+    }
+    .sale-card__detail-value {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .sale-card__price {
+      margin-top: auto;
+      padding-top: .75rem;
+      border-top: 1px solid var(--border);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    .sale-empty {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 1.75rem;
+      color: var(--gold);
+      text-decoration: none;
+      font-size: .9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body style="background:var(--bg-deep); min-height:100vh;">
+  <div class="sale-wrap">
+    <div class="sale-header">
+      <h1>Properties For Sale</h1>
+      <p>Browse currently listed properties available for purchase.</p>
+    </div>
+
+    <div class="sale-grid" id="saleGrid">
+      <div class="sale-empty">Loading listings…</div>
+    </div>
+
+    <a href="/" class="back-link">← Back to Map</a>
+  </div>
+
+  <script>
+  (function() {
+    const grid = document.getElementById('saleGrid');
+
+    function formatCurrency(v) {
+      if (!v && v !== 0) return '—';
+      return '$' + Number(v).toLocaleString();
+    }
+
+    function formatSqft(v) {
+      if (!v) return '—';
+      return Number(v).toLocaleString() + ' sqft';
+    }
+
+    function renderCard(p) {
+      return '<div class="sale-card">' +
+        '<h2 class="sale-card__name">' + (p.name || 'Unnamed Property') + '</h2>' +
+        '<div class="sale-card__address">' + (p.address || 'No address listed') + '</div>' +
+        '<div class="sale-card__details">' +
+          '<div class="sale-card__detail"><span class="sale-card__detail-label">Type:</span><span class="sale-card__detail-value">' + (p.type || '—') + '</span></div>' +
+          '<div class="sale-card__detail"><span class="sale-card__detail-label">Size:</span><span class="sale-card__detail-value">' + formatSqft(p.square_footage) + '</span></div>' +
+        '</div>' +
+        '<div class="sale-card__price">' + formatCurrency(p.asking_price || p.assessed_value) + '</div>' +
+      '</div>';
+    }
+
+    async function load() {
+      try {
+        const res = await fetch('/api/modules/for-sale');
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        const listings = data.properties || data;
+        if (!listings.length) {
+          grid.innerHTML = '<div class="sale-empty">No properties currently listed for sale.</div>';
+          return;
+        }
+        grid.innerHTML = listings.map(renderCard).join('');
+      } catch (e) {
+        grid.innerHTML = '<div class="sale-empty">Unable to load listings. Please try again later.</div>';
+      }
+    }
+
+    load();
+  })();
+  </script>
+</body>
+</html>
