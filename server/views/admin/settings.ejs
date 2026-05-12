@@ -66,6 +66,41 @@
       <% }) %>
     </section>
 
+    <% if (districts && districts.length > 0) { %>
+    <section class="districts-section">
+      <h3>District Zones</h3>
+      <p class="lead">Manage surveyed district zones drawn on the map.</p>
+      <table class="preset-table">
+        <thead>
+          <tr>
+            <th>Color</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Tax Mult.</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% districts.forEach((d) => { %>
+          <tr>
+            <td><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:<%= d.color || '#3498db' %>;border:1px solid rgba(255,255,255,0.15)"></span></td>
+            <td><strong><%= d.name %></strong></td>
+            <td class="text-muted"><%= d.description || '—' %></td>
+            <td><%= d.tax_multiplier || 1.0 %>&times;</td>
+            <td class="text-muted"><%= d.created_at ? new Date(d.created_at).toLocaleDateString() : '—' %></td>
+            <td>
+              <form action="/api/modules/districts/<%= d._id %>" method="post" class="district-delete-form" data-id="<%= d._id %>">
+                <button type="button" class="btn btn-compact btn-danger district-delete-btn" data-id="<%= d._id %>">Delete</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+    <% } %>
+
     <section>
       <h3>Tax Zone Presets</h3>
       <p class="lead">Set tax rates per area. When creating or editing a property, staff can pick a zone to auto-fill the tax rate.</p>
@@ -166,6 +201,25 @@
         }
       });
       if (toggle.checked) toggle.closest('.module-card')?.classList.add('module-card--active');
+    });
+
+    document.querySelectorAll('.district-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this district? This cannot be undone.')) return;
+        const id = btn.dataset.id;
+        try {
+          const r = await fetch(`/api/modules/districts/${id}`, {
+            method: 'DELETE',
+            headers: { 'CSRF-Token': '<%= csrfToken %>' },
+            credentials: 'same-origin'
+          });
+          if (r.ok) {
+            btn.closest('tr')?.remove();
+          } else {
+            alert('Failed to delete district');
+          }
+        } catch { alert('Failed to delete district'); }
+      });
     });
   </script>
 </body>

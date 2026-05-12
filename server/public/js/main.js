@@ -207,6 +207,11 @@ if (window.SAPA_CONFIG.map_image_path) {
 }
 map.fitBounds(bounds);
 
+const zoomInBtn = document.querySelector('.leaflet-control-zoom-in');
+const zoomOutBtn = document.querySelector('.leaflet-control-zoom-out');
+if (zoomInBtn) { zoomInBtn.innerHTML = '+ <span class="zoom-label">Zoom In</span>'; zoomInBtn.title = 'Zoom In'; }
+if (zoomOutBtn) { zoomOutBtn.innerHTML = '&minus; <span class="zoom-label">Zoom Out</span>'; zoomOutBtn.title = 'Zoom Out'; }
+
 void loadPostalIndex();
 
 const featureGroup = new L.FeatureGroup().addTo(map);
@@ -519,14 +524,6 @@ if (user && (user.role === 'admin' || user.role === 'appraiser')) {
     draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false }
   });
   map.addControl(drawControl);
-
-  map.on(L.Draw.Event.CREATED, (e) => {
-    const geo = e.layer.toGeoJSON().geometry;
-    const gj = document.getElementById('geojsonInput');
-    if (gj) gj.value = JSON.stringify(geo);
-    resetFormForNew();
-    propertyModal?.classList.remove('hidden');
-  });
 }
 
 propertyTypeSelect?.addEventListener('change', () => {
@@ -3930,30 +3927,46 @@ document.getElementById('closeProximity')?.addEventListener('click', () => {
 });
 proximityOverlay?.addEventListener('click', (e) => { if (e.target === proximityOverlay) proximityOverlay.classList.add('hidden'); });
 
-/* ── District Surveying ────────────────────────────── */
+/* ── District Zoning Tool ──────────────────────────── */
 const surveyDistrictBtn = document.getElementById('surveyDistrictBtn');
 const districtModal = document.getElementById('districtModal');
 let pendingDistrictGeoJSON = null;
+let districtDrawHandler = null;
+let districtPreviewLayer = null;
 
 if (isModuleEnabled('districts') && isStaff() && user?.role === 'admin') {
   if (surveyDistrictBtn) surveyDistrictBtn.style.display = '';
 }
 
 surveyDistrictBtn?.addEventListener('click', () => {
-  const drawnLayers = [];
-  featureGroup.eachLayer((l) => { if (l.editing) drawnLayers.push(l); });
-
-  let lastDrawn = null;
-  map.eachLayer((l) => {
-    if (l instanceof L.Polygon && !(l instanceof L.Rectangle) && !featureGroup.hasLayer(l) && l.toGeoJSON) lastDrawn = l;
-  });
-
-  if (lastDrawn) {
-    pendingDistrictGeoJSON = lastDrawn.toGeoJSON().geometry;
-    districtModal?.classList.remove('hidden');
-  } else {
-    showToast('Draw a polygon on the map first using the draw tools, then click District again', 'info');
+  if (districtDrawHandler) {
+    districtDrawHandler.disable();
+    districtDrawHandler = null;
+    surveyDistrictBtn.classList.remove('active');
+    showToast('Zoning tool cancelled', 'info');
+    return;
   }
+  districtDrawHandler = new L.Draw.Polygon(map, { shapeOptions: { color: '#3498db', weight: 2, fillOpacity: 0.15, dashArray: '6 4' } });
+  districtDrawHandler.enable();
+  surveyDistrictBtn.classList.add('active');
+  showToast('Click on the map to draw the district boundary. Double-click to finish.', 'info', 5000);
+});
+
+map.on(L.Draw.Event.CREATED, (e) => {
+  if (districtDrawHandler) {
+    pendingDistrictGeoJSON = e.layer.toGeoJSON().geometry;
+    districtPreviewLayer = e.layer;
+    e.layer.addTo(map);
+    districtDrawHandler = null;
+    surveyDistrictBtn?.classList.remove('active');
+    districtModal?.classList.remove('hidden');
+    return;
+  }
+  const geo = e.layer.toGeoJSON().geometry;
+  const gj = document.getElementById('geojsonInput');
+  if (gj) gj.value = JSON.stringify(geo);
+  resetFormForNew();
+  propertyModal?.classList.remove('hidden');
 });
 
 document.getElementById('saveDistrictBtn')?.addEventListener('click', async () => {
@@ -3976,6 +3989,7 @@ document.getElementById('saveDistrictBtn')?.addEventListener('click', async () =
     if (r.ok) {
       showToast(`District "${name}" created`, 'success');
       districtModal?.classList.add('hidden');
+      if (districtPreviewLayer) { map.removeLayer(districtPreviewLayer); districtPreviewLayer = null; }
       pendingDistrictGeoJSON = null;
       document.getElementById('districtName').value = '';
       document.getElementById('districtDesc').value = '';
@@ -3987,8 +4001,10 @@ document.getElementById('saveDistrictBtn')?.addEventListener('click', async () =
   } catch { showToast('Failed to save district', 'error'); }
 });
 
-document.getElementById('closeDistrictModal')?.addEventListener('click', () => {
+function cancelDistrictDraw() {
   districtModal?.classList.add('hidden');
+  if (districtPreviewLayer) { map.removeLayer(districtPreviewLayer); districtPreviewLayer = null; }
   pendingDistrictGeoJSON = null;
-});
-districtModal?.addEventListener('click', (e) => { if (e.target === districtModal) districtModal.classList.add('hidden'); });
+}
+document.getElementById('closeDistrictModal')?.addEventListener('click', cancelDistrictDraw);
+districtModal?.addEventListener('click', (e) => { if (e.target === districtModal) cancelDistrictDraw(); });

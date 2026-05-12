@@ -2298,6 +2298,11 @@ body.layout-map {
   padding: 7px 12px;
   font-size: 12px;
 }
+.btn-sm.active {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+}
 
 /* ── Property Table View ───────────────────────────── */
 .table-view {
@@ -2460,6 +2465,33 @@ kbd {
 }
 
 /* ── Map Labels ────────────────────────────────────── */
+/* Zoom control labels */
+.leaflet-control-zoom a {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto !important;
+  min-width: 34px;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+  line-height: 30px !important;
+}
+.leaflet-control-zoom a:hover {
+  background: var(--bg-deep) !important;
+  color: var(--accent) !important;
+}
+.leaflet-control-zoom a .zoom-label {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
 .map-label {
   background: none !important;
   border: none !important;

@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/authMiddleware');
-const { AuditLog, LoginLog, Property, PropertyTransaction } = require('../models/schemas');
+const { AuditLog, LoginLog, Property, PropertyTransaction, District } = require('../models/schemas');
 const { listUsers, updateUserRole } = require('../models/userModel');
 const { listPropertiesForMap, createProperty, bulkRecalcAssessedValues } = require('../models/propertyModel');
 const { listBusinesses } = require('../models/businessModel');
@@ -118,6 +118,7 @@ router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
   const storedModules = await getSetting('modules');
   const defaults = getDefaultModules();
   const moduleStates = { ...defaults, ...(storedModules && typeof storedModules === 'object' ? storedModules : {}) };
+  const districts = moduleStates.districts ? await District.find().sort({ name: 1 }).lean() : [];
   res.render('admin/settings', {
     presets,
     error: req.query.error || null,
@@ -125,7 +126,8 @@ router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
     discordWebhookUrl: settings.discord_webhook_url || '',
     moduleDefinitions: MODULE_DEFINITIONS,
     moduleCategories: MODULE_CATEGORIES,
-    moduleStates
+    moduleStates,
+    districts
   });
 });
 
