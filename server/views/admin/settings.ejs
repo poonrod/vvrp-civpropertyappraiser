@@ -66,10 +66,10 @@
       <% }) %>
     </section>
 
-    <% if (districts && districts.length > 0) { %>
     <section class="districts-section">
       <h3>District Zones</h3>
-      <p class="lead">Manage surveyed district zones drawn on the map.</p>
+      <p class="lead">Manage surveyed district zones drawn on the map. HOA fees are automatically applied to all residential properties within each district.</p>
+      <% if (districts && districts.length > 0) { %>
       <table class="preset-table">
         <thead>
           <tr>
@@ -77,31 +77,32 @@
             <th>Name</th>
             <th>Description</th>
             <th>Tax Mult.</th>
-            <th>HOA Fee</th>
+            <th>HOA Fee ($/mo)</th>
             <th>Created</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           <% districts.forEach((d) => { %>
-          <tr>
-            <td><span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:<%= d.color || '#3498db' %>;border:1px solid rgba(255,255,255,0.15)"></span></td>
+          <tr class="district-row" data-id="<%= d._id %>">
+            <td><input type="color" class="district-color-input" value="<%= d.color || '#3498db' %>" style="width:28px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--bg-deep);cursor:pointer" /></td>
             <td><strong><%= d.name %></strong></td>
-            <td class="text-muted"><%= d.description || '—' %></td>
-            <td><%= d.tax_multiplier || 1.0 %>&times;</td>
-            <td><%= d.hoa_fee ? '$' + d.hoa_fee.toLocaleString() + '/mo' : '—' %></td>
+            <td><input type="text" class="preset-input district-desc-input" value="<%= d.description || '' %>" placeholder="Description" /></td>
+            <td><input type="number" class="preset-input district-taxmult-input" value="<%= d.tax_multiplier || 1.0 %>" step="0.1" min="0" style="width:70px" /></td>
+            <td><input type="number" class="preset-input district-hoa-input" value="<%= d.hoa_fee || 0 %>" step="1" min="0" style="width:90px" /></td>
             <td class="text-muted"><%= d.created_at ? new Date(d.created_at).toLocaleDateString() : '—' %></td>
-            <td>
-              <form action="/api/modules/districts/<%= d._id %>" method="post" class="district-delete-form" data-id="<%= d._id %>">
-                <button type="button" class="btn btn-compact btn-danger district-delete-btn" data-id="<%= d._id %>">Delete</button>
-              </form>
+            <td class="preset-actions">
+              <button type="button" class="btn btn-compact district-save-btn" data-id="<%= d._id %>">Save</button>
+              <button type="button" class="btn btn-compact btn-danger district-delete-btn" data-id="<%= d._id %>">Delete</button>
             </td>
           </tr>
           <% }) %>
         </tbody>
       </table>
+      <% } else { %>
+      <p class="text-muted">No districts created yet. Use the Zoning Tool on the map to draw district boundaries.</p>
+      <% } %>
     </section>
-    <% } %>
 
     <section>
       <h3>Tax Zone Presets</h3>
@@ -205,6 +206,31 @@
       if (toggle.checked) toggle.closest('.module-card')?.classList.add('module-card--active');
     });
 
+    document.querySelectorAll('.district-save-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const row = btn.closest('.district-row');
+        const id = btn.dataset.id;
+        const body = {
+          description: row.querySelector('.district-desc-input')?.value || '',
+          color: row.querySelector('.district-color-input')?.value || '#3498db',
+          tax_multiplier: Number(row.querySelector('.district-taxmult-input')?.value) || 1.0,
+          hoa_fee: Number(row.querySelector('.district-hoa-input')?.value) || 0
+        };
+        try {
+          const r = await fetch(`/api/modules/districts/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': '<%= csrfToken %>' },
+            credentials: 'same-origin',
+            body: JSON.stringify(body)
+          });
+          if (r.ok) {
+            btn.textContent = 'Saved!';
+            setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+          } else { alert('Failed to save'); }
+        } catch { alert('Failed to save'); }
+      });
+    });
+
     document.querySelectorAll('.district-delete-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this district? This cannot be undone.')) return;
@@ -217,9 +243,7 @@
           });
           if (r.ok) {
             btn.closest('tr')?.remove();
-          } else {
-            alert('Failed to delete district');
-          }
+          } else { alert('Failed to delete district'); }
         } catch { alert('Failed to delete district'); }
       });
     });

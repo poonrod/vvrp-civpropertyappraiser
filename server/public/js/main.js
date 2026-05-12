@@ -1544,11 +1544,6 @@ function renderFeesPreview(p, moduleData) {
     fees.push({ label: `${district.name} HOA`, amount: district.hoa_fee, period: 'mo', status: 'Active' });
   }
 
-  if (moduleData.hoaFees?.length) {
-    moduleData.hoaFees.forEach((h) => {
-      fees.push({ label: h.association_name || 'HOA', amount: h.monthly_fee || 0, period: 'mo', status: h.status });
-    });
-  }
   if (moduleData.insurance?.length) {
     moduleData.insurance.forEach((ins) => {
       if (ins.status === 'Active') fees.push({ label: ins.provider || 'Insurance', amount: ins.premium || 0, period: 'mo', status: 'Active' });
@@ -1630,12 +1625,6 @@ async function loadModuleData(propertyId) {
     fetches.push(
       fetch(`/api/modules/properties/${propertyId}/reminders`, { credentials: 'same-origin' })
         .then((r) => r.ok ? r.json() : []).then((d) => { data.reminders = d; }).catch(() => { data.reminders = []; })
-    );
-  }
-  if (isModuleEnabled('hoa_fees')) {
-    fetches.push(
-      fetch(`/api/modules/properties/${propertyId}/hoa`, { credentials: 'same-origin' })
-        .then((r) => r.ok ? r.json() : []).then((d) => { data.hoaFees = d; }).catch(() => { data.hoaFees = []; })
     );
   }
   if (isModuleEnabled('foreclosure')) {
@@ -2198,60 +2187,6 @@ function renderModuleSections(p, moduleData, container) {
         body: JSON.stringify({ title, due_date: due || null, notes: notes || null })
       });
       if (r.ok) { showToast('Reminder added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
-    });
-  }
-
-  // HOA Fees
-  if (isModuleEnabled('hoa_fees') && moduleData.hoaFees) {
-    const overdue = moduleData.hoaFees.filter((h) => h.status === 'Overdue');
-    let html = `<div class="module-section"><h4 class="module-section__title">HOA Fees ${overdue.length ? `<span class="badge badge--danger">${overdue.length} overdue</span>` : ''}</h4>`;
-    if (moduleData.hoaFees.length > 0) {
-      html += `<div class="module-list">`;
-      moduleData.hoaFees.forEach((h) => {
-        const statusClass = h.status === 'Paid' ? 'success' : h.status === 'Overdue' ? 'danger' : h.status === 'Current' ? 'info' : 'warning';
-        html += `<div class="module-list-item ${h.status === 'Overdue' ? 'module-list-item--danger' : ''}">
-          <span><strong>${escapeHtml(h.association_name || 'HOA')}</strong> — $${Number(h.monthly_fee || 0).toLocaleString()}/mo</span>
-          <span class="text-muted">${h.due_date ? 'Due: ' + new Date(h.due_date).toLocaleDateString() : ''} ${h.balance != null ? '| Balance: $' + Number(h.balance).toLocaleString() : ''}</span>
-          <span class="badge badge--${statusClass}">${h.status}</span>
-          ${isStaff() && h.status === 'Overdue' ? `<button class="btn btn-compact pay-hoa-btn" data-id="${h._id}">Record Payment</button>` : ''}
-        </div>`;
-      });
-      html += `</div>`;
-    } else {
-      html += `<p class="module-empty">No HOA fees</p>`;
-    }
-    if (isStaff()) {
-      html += `<details class="module-add-form"><summary class="btn btn-compact">Add HOA Fee</summary>
-        <div class="module-form-body">
-          <input type="text" class="hoa-assoc-input" placeholder="Association name" />
-          <input type="number" class="hoa-fee-input" placeholder="Monthly fee ($)" step="0.01" />
-          <input type="date" class="hoa-due-input" />
-          <button class="btn btn-compact btn-primary add-hoa-btn" data-property="${p.id}">Add HOA Fee</button>
-        </div></details>`;
-    }
-    html += `</div>`;
-    container.insertAdjacentHTML('beforeend', html);
-
-    container.querySelectorAll('.pay-hoa-btn').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const r = await fetch(`/api/modules/hoa/${btn.dataset.id}/payment`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
-          body: JSON.stringify({ status: 'Paid' })
-        });
-        if (r.ok) { showToast('Payment recorded', 'success'); renderPanel(p); } else showToast('Failed', 'error');
-      });
-    });
-
-    container.querySelector('.add-hoa-btn')?.addEventListener('click', async () => {
-      const assoc = container.querySelector('.hoa-assoc-input')?.value;
-      const fee = container.querySelector('.hoa-fee-input')?.value;
-      const due = container.querySelector('.hoa-due-input')?.value;
-      if (!assoc || !fee) { showToast('Association and fee required', 'error'); return; }
-      const r = await fetch(`/api/modules/properties/${p.id}/hoa`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
-        body: JSON.stringify({ association_name: assoc, monthly_fee: fee, due_date: due || null })
-      });
-      if (r.ok) { showToast('HOA fee added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
     });
   }
 
@@ -3174,7 +3109,7 @@ function wrapFormModulesInTabs(container) {
     'Photos': 'Records', 'Liens & Warrants': 'Legal', 'Tax Ledger': 'Financial',
     'Leases': 'Financial', 'Staff Notes': 'Records', 'Mortgages': 'Financial',
     'Insurance': 'Financial', 'Tax Exemptions': 'Financial', 'Reminders': 'Management',
-    'HOA Fees': 'Financial', 'Foreclosure': 'Legal', 'Zoning Permits': 'Legal',
+    'Foreclosure': 'Legal', 'Zoning Permits': 'Legal',
     'Code Enforcement': 'Legal', 'Inspections': 'Records', 'Improvements': 'Records',
     'Damage Reports': 'Records', 'Utilities': 'Management', 'Environmental': 'Records',
     'Landmark': 'Records', 'Access List': 'Management', 'Parking': 'Management',

@@ -72,8 +72,7 @@ const MODULE_DEFINITIONS = [
   { key: 'leaderboard', name: 'Appraiser Leaderboard', description: 'Staff metrics, weekly rankings, and badges', category: 'social', defaultEnabled: false },
   { key: 'gazette', name: 'Property Gazette', description: 'Auto-generated monthly newsletter', category: 'social', defaultEnabled: false },
   { key: 'seasonal_events', name: 'Seasonal Events', description: 'Holiday contests, seasonal tax discounts', category: 'social', defaultEnabled: false },
-  { key: 'bookmarks', name: 'Saved Map Views', description: 'Save and quick-jump to named map states', category: 'social', defaultEnabled: false },
-  { key: 'hoa_fees', name: 'HOA & Community Fees', description: 'Per-district community dues and HOA rules', category: 'social', defaultEnabled: false }
+  { key: 'bookmarks', name: 'Saved Map Views', description: 'Save and quick-jump to named map states', category: 'social', defaultEnabled: false }
 ];
 
 function getDefaultModules() {

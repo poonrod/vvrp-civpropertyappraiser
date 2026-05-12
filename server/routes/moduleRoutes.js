@@ -9,7 +9,7 @@ const {
   TaxExemption, ValuationCycle, Property,
   MapAnnotation, District, PropertyTransaction,
   WebhookEndpoint, Reminder, AuditLog,
-  StaffMetric, SeasonalEvent, SavedView, HoaFee, User,
+  StaffMetric, SeasonalEvent, SavedView, User,
   Foreclosure, ZoningPermit, EminentDomain, CodeEnforcement,
   AccessList, Parking, Inspection, Improvement, DamageReport,
   UtilityConnection, EnvironmentalHazard, Landmark, PropertyDispute,
@@ -1006,40 +1006,6 @@ router.delete('/bookmarks/:id', requireAuth, requireModule('bookmarks'), async (
   try {
     await SavedView.findOneAndDelete({ _id: req.params.id, user_id: req.session.user.id });
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-/* ═══════════════════════════════════════════════════
-   MODULE: hoa_fees -- HOA & Community Fees
-   ═══════════════════════════════════════════════════ */
-router.get('/properties/:id/hoa', requireModule('hoa_fees'), async (req, res) => {
-  try {
-    const fees = await HoaFee.find({ property_id: req.params.id }).sort({ created_at: -1 }).lean();
-    res.json(fees);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.post('/properties/:id/hoa', requireAuth, requireRole(...STAFF), requireModule('hoa_fees'), async (req, res) => {
-  try {
-    const fee = await HoaFee.create({
-      property_id: req.params.id,
-      district_name: req.body.district_name || '',
-      monthly_fee: Number(req.body.monthly_fee) || 0,
-      created_by: req.session.user.id
-    });
-    res.status(201).json(fee);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.patch('/hoa/:id', requireAuth, requireRole(...STAFF), requireModule('hoa_fees'), async (req, res) => {
-  try {
-    const update = {};
-    if (req.body.status) update.status = req.body.status;
-    if (req.body.balance_owed != null) update.balance_owed = Number(req.body.balance_owed);
-    if (req.body.monthly_fee != null) update.monthly_fee = Number(req.body.monthly_fee);
-    const fee = await HoaFee.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!fee) return res.status(404).json({ error: 'HOA fee not found' });
-    res.json(fee);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

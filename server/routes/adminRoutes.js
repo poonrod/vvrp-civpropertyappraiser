@@ -118,7 +118,7 @@ router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
   const storedModules = await getSetting('modules');
   const defaults = getDefaultModules();
   const moduleStates = { ...defaults, ...(storedModules && typeof storedModules === 'object' ? storedModules : {}) };
-  const districts = moduleStates.districts ? await District.find().sort({ name: 1 }).lean() : [];
+  const districts = await District.find().sort({ name: 1 }).lean();
   res.render('admin/settings', {
     presets,
     error: req.query.error || null,
