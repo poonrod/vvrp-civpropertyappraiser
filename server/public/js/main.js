@@ -3290,9 +3290,10 @@ function renderMapLabels(props) {
       const center = gj.getBounds().getCenter();
       const text = p.name || p.parcel_id || '';
       if (!text) return;
+      const display = text.replace(/\b\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
       const label = L.divIcon({
         className: 'map-label',
-        html: `<span class="map-label-text">${escapeHtml(text)}</span>`,
+        html: `<span class="map-label-text">${escapeHtml(display)}</span>`,
         iconSize: [1, 1],
         iconAnchor: [0, 0]
       });
