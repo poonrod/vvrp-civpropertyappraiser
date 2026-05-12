@@ -207,6 +207,10 @@ if (window.SAPA_CONFIG.map_image_path) {
 }
 map.fitBounds(bounds);
 
+map.createPane('districtPane');
+map.getPane('districtPane').style.zIndex = 250;
+map.getPane('districtPane').style.pointerEvents = 'none';
+
 const zoomInBtn = document.querySelector('.leaflet-control-zoom-in');
 const zoomOutBtn = document.querySelector('.leaflet-control-zoom-out');
 if (zoomInBtn) { zoomInBtn.innerHTML = '+ <span class="zoom-label">Zoom In</span>'; zoomInBtn.title = 'Zoom In'; }
@@ -3211,14 +3215,23 @@ async function loadDistricts() {
     for (const d of districts) {
       if (!d.geojson) continue;
       const layer = L.geoJSON({ type: 'Feature', geometry: d.geojson }, {
-        style: { color: d.color || '#3498db', weight: 2, fillOpacity: 0.04, fill: true, dashArray: '10 6' }
+        style: { color: d.color || '#3498db', weight: 2, fillOpacity: 0.04, fill: true, dashArray: '10 6' },
+        pane: 'districtPane'
       });
       let tooltipText = d.name;
       if (d.hoa_fee && d.hoa_fee > 0) tooltipText += `\nHOA: $${Number(d.hoa_fee).toLocaleString()}/mo`;
       if (d.tax_multiplier && d.tax_multiplier !== 1) tooltipText += `\nTax: ${d.tax_multiplier}×`;
-      layer.bindTooltip(tooltipText, { sticky: true, className: 'district-tooltip', direction: 'top' });
-      layer.on('mouseover', () => { layer.setStyle({ fillOpacity: 0.15, weight: 3 }); });
-      layer.on('mouseout', () => { layer.setStyle({ fillOpacity: 0.04, weight: 2 }); });
+      const coords = d.geojson.type === 'Polygon' ? d.geojson.coordinates[0] : (d.geojson.type === 'MultiPolygon' ? d.geojson.coordinates[0][0] : null);
+      if (coords && coords.length) {
+        let cx = 0, cy = 0;
+        for (const c of coords) { cx += c[0]; cy += c[1]; }
+        cx /= coords.length; cy /= coords.length;
+        const ll = worldToLatLng(cx, cy, calibration);
+        const labelHtml = `<span class="district-label-text" style="border-color:${d.color || '#3498db'}">${escapeHtml(d.name)}${d.hoa_fee > 0 ? '<br>HOA $' + Number(d.hoa_fee).toLocaleString() + '/mo' : ''}</span>`;
+        const icon = L.divIcon({ className: 'district-label', html: labelHtml, iconSize: [1, 1], iconAnchor: [0, 0] });
+        const marker = L.marker(ll, { icon, interactive: false, pane: 'tooltipPane' });
+        districtLayer.addLayer(marker);
+      }
       districtLayer.addLayer(layer);
     }
     districtLayer.addTo(map);
