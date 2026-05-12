@@ -3224,12 +3224,15 @@ function renderMapLabels(props) {
     try {
       const gj = L.geoJSON({ type: 'Feature', geometry: p.geojson });
       const center = gj.getBounds().getCenter();
+      const text = p.name || p.parcel_id || '';
+      if (!text) return;
       const label = L.divIcon({
         className: 'map-label',
-        html: `<span class="map-label-text">${escapeHtml(p.name || p.parcel_id || '')}</span>`,
-        iconSize: [0, 0]
+        html: `<span class="map-label-text">${escapeHtml(text)}</span>`,
+        iconSize: [1, 1],
+        iconAnchor: [0, 0]
       });
-      L.marker(center, { icon: label, interactive: false }).addTo(labelLayer);
+      L.marker(center, { icon: label, interactive: false, pane: 'tooltipPane' }).addTo(labelLayer);
     } catch { /* skip invalid geojson */ }
   });
   labelLayer.addTo(map);
