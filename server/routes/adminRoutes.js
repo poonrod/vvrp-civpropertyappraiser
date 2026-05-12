@@ -11,6 +11,8 @@ const {
   deleteTaxPreset
 } = require('../models/taxPresetModel');
 const { getSetting, setSetting, getSettings } = require('../models/appSettingModel');
+const { invalidateModuleCache } = require('../middleware/moduleMiddleware');
+const { MODULE_DEFINITIONS, MODULE_CATEGORIES, getDefaultModules } = require('../config/moduleDefinitions');
 
 const router = express.Router();
 
@@ -113,12 +115,39 @@ router.post('/import/geojson', requireAuth, requireRole('admin'), express.json()
 router.get('/settings', requireAuth, requireRole('admin'), async (req, res) => {
   const presets = await listTaxPresets();
   const settings = await getSettings(['price_per_sqft', 'discord_webhook_url']);
+  const storedModules = await getSetting('modules');
+  const defaults = getDefaultModules();
+  const moduleStates = { ...defaults, ...(storedModules && typeof storedModules === 'object' ? storedModules : {}) };
   res.render('admin/settings', {
     presets,
     error: req.query.error || null,
     pricePerSqft: settings.price_per_sqft || 0,
-    discordWebhookUrl: settings.discord_webhook_url || ''
+    discordWebhookUrl: settings.discord_webhook_url || '',
+    moduleDefinitions: MODULE_DEFINITIONS,
+    moduleCategories: MODULE_CATEGORIES,
+    moduleStates
   });
+});
+
+router.post('/settings/modules/toggle', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { key, enabled } = req.body;
+    if (!key || typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    const valid = MODULE_DEFINITIONS.some((m) => m.key === key);
+    if (!valid) return res.status(400).json({ error: 'Unknown module key' });
+    const stored = await getSetting('modules');
+    const defaults = getDefaultModules();
+    const current = { ...defaults, ...(stored && typeof stored === 'object' ? stored : {}) };
+    current[key] = enabled;
+    await setSetting('modules', current);
+    invalidateModuleCache();
+    return res.json({ ok: true, key, enabled });
+  } catch (e) {
+    console.error('[admin] module toggle error:', e);
+    return res.status(500).json({ error: 'Failed to toggle module' });
+  }
 });
 
 router.post('/settings/general', requireAuth, requireRole('admin'), async (req, res) => {

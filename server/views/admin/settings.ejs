@@ -39,6 +39,30 @@
       </form>
     </section>
 
+    <section class="modules-section">
+      <h3>Feature Modules</h3>
+      <p class="lead">Enable or disable feature modules. Changes take effect immediately.</p>
+      <% moduleCategories.forEach((cat) => { %>
+        <div class="module-category">
+          <h4 class="module-category__title"><%= cat.label %></h4>
+          <div class="module-grid">
+            <% moduleDefinitions.filter(m => m.category === cat.id).forEach((mod) => { %>
+              <div class="module-card" data-module="<%= mod.key %>">
+                <div class="module-card__info">
+                  <span class="module-card__name"><%= mod.name %></span>
+                  <span class="module-card__desc"><%= mod.description %></span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="module-toggle" data-key="<%= mod.key %>" <%= moduleStates[mod.key] ? 'checked' : '' %> />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      <% }) %>
+    </section>
+
     <section>
       <h3>Tax Zone Presets</h3>
       <p class="lead">Set tax rates per area. When creating or editing a property, staff can pick a zone to auto-fill the tax rate.</p>
@@ -112,5 +136,34 @@
       </form>
     </section>
   </div>
+  <script>
+    document.querySelectorAll('.module-toggle').forEach((toggle) => {
+      toggle.addEventListener('change', async () => {
+        const key = toggle.dataset.key;
+        const enabled = toggle.checked;
+        const card = toggle.closest('.module-card');
+        card.classList.toggle('module-card--active', enabled);
+        try {
+          const res = await fetch('/admin/settings/modules/toggle', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'CSRF-Token': '<%= csrfToken %>'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ key, enabled })
+          });
+          if (!res.ok) {
+            toggle.checked = !enabled;
+            card.classList.toggle('module-card--active', !enabled);
+          }
+        } catch {
+          toggle.checked = !enabled;
+          card.classList.toggle('module-card--active', !enabled);
+        }
+      });
+      if (toggle.checked) toggle.closest('.module-card')?.classList.add('module-card--active');
+    });
+  </script>
 </body>
 </html>

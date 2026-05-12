@@ -6,6 +6,11 @@ const user = window.SAPA_USER;
 const defaultTaxRates = window.SAPA_TAX_RATES || {};
 const taxPresets = window.SAPA_TAX_PRESETS || [];
 const pricePerSqft = Number(window.SAPA_PRICE_PER_SQFT) || 0;
+const enabledModules = window.SAPA_MODULES || {};
+
+function isModuleEnabled(key) {
+  return !!enabledModules[key];
+}
 
 const STAFF_ROLES = ['admin', 'appraiser', 'clerk'];
 function isStaff() {
@@ -16,6 +21,72 @@ function escapeHtml(s) {
   const el = document.createElement('div');
   el.textContent = s == null ? '' : String(s);
   return el.innerHTML;
+}
+
+/* ── Toast Notification System ─────────────────────── */
+const toastContainer = document.getElementById('toastContainer');
+const TOAST_ICONS = { success: '\u2714', error: '\u2718', info: '\u2139' };
+
+function showToast(message, type = 'info', duration = 4000) {
+  if (!toastContainer) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.innerHTML = `<span class="toast__icon">${TOAST_ICONS[type] || ''}</span><span class="toast__message">${escapeHtml(message)}</span>`;
+  toastContainer.appendChild(toast);
+  const dismiss = () => {
+    toast.classList.add('toast--exiting');
+    setTimeout(() => toast.remove(), 250);
+  };
+  toast.addEventListener('click', dismiss);
+  if (duration > 0) setTimeout(dismiss, duration);
+}
+
+/* ── Debounce Utility ──────────────────────────────── */
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+/* ── Button Loading State ──────────────────────────── */
+function setButtonLoading(btn, loading) {
+  if (!btn) return;
+  if (loading) {
+    btn.classList.add('btn--loading');
+    btn.disabled = true;
+    btn._origText = btn.textContent;
+  } else {
+    btn.classList.remove('btn--loading');
+    btn.disabled = false;
+    if (btn._origText) btn.textContent = btn._origText;
+  }
+}
+
+/* ── Inline Validation ─────────────────────────────── */
+function setFieldError(el, message) {
+  if (!el) return;
+  el.classList.add('field-invalid');
+  const existing = el.parentElement?.querySelector('.field-error-text');
+  if (existing) existing.remove();
+  if (message) {
+    const span = document.createElement('span');
+    span.className = 'field-error-text';
+    span.textContent = message;
+    el.insertAdjacentElement('afterend', span);
+  }
+}
+
+function clearFieldError(el) {
+  if (!el) return;
+  el.classList.remove('field-invalid');
+  el.parentElement?.querySelector('.field-error-text')?.remove();
+}
+
+function clearAllFieldErrors(form) {
+  if (!form) return;
+  form.querySelectorAll('.field-invalid').forEach((el) => clearFieldError(el));
 }
 
 const bounds = window.SAPA_CONFIG.bounds || [[0, 0], [1080, 1920]];
@@ -672,7 +743,7 @@ function renderPanel(p) {
           if (layer.propertyId === p.id) featureGroup.removeLayer(layer);
         });
       } else {
-        alert('Failed to delete property.');
+        showToast('Failed to delete property', 'error');
         panel.querySelector('.panel-delete-confirm')?.remove();
       }
     });
@@ -790,14 +861,14 @@ function renderPanel(p) {
       const buyer = panel.querySelector('#saleBuyerName')?.value?.trim();
       const price = Number(panel.querySelector('#salePrice')?.value || 0);
       const notes = panel.querySelector('#saleNotes')?.value?.trim() || null;
-      if (!buyer) { alert('Enter the buyer name'); return; }
+      if (!buyer) { showToast('Enter the buyer name', 'error'); return; }
 
       const isNonRes = p.type !== 'Residential';
       const buyerType = isNonRes ? (panel.querySelector('#saleBuyerType')?.value || 'Individual') : 'Individual';
       const bizName = isNonRes ? (panel.querySelector('#saleBizNameInput')?.value?.trim() || '') : '';
       const bizId = isNonRes ? (panel.querySelector('#saleBizIdInput')?.value || '') : '';
 
-      if (buyerType === 'Business' && !bizName) { alert('Enter the business name'); return; }
+      if (buyerType === 'Business' && !bizName) { showToast('Enter the business name', 'error'); return; }
 
       const seller = isResMulti
         ? (panel.querySelector('#saleSellerSelect')?.value || p.owner_name)
@@ -831,7 +902,7 @@ function renderPanel(p) {
         const updated = await fresh.json();
         if (updated && !updated.error) renderPanel(updated);
       } else {
-        alert('Failed to record sale');
+        showToast('Failed to record sale', 'error');
       }
     });
   });
@@ -857,7 +928,7 @@ function renderPanel(p) {
       const newOwner = panel.querySelector('#transferNewOwner')?.value?.trim();
       const ownerType = panel.querySelector('#transferOwnerType')?.value || 'Individual';
       const notes = panel.querySelector('#transferNotes')?.value?.trim() || null;
-      if (!newOwner) { alert('Enter the new owner name'); return; }
+      if (!newOwner) { showToast('Enter the new owner name', 'error'); return; }
       const res = await fetch(`/api/properties/${encodeURIComponent(p.id)}/transfer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
@@ -877,10 +948,26 @@ function renderPanel(p) {
         const updated = await fresh.json();
         if (updated && !updated.error) renderPanel(updated);
       } else {
-        alert('Failed to transfer ownership');
+        showToast('Failed to transfer ownership', 'error');
       }
     });
   });
+
+  // Load and render module-specific sections
+  if (p.id && !hidden) {
+    const inner = panel.querySelector('.panel__inner');
+    if (inner) {
+      const moduleContainer = document.createElement('div');
+      moduleContainer.className = 'panel-modules';
+      const closeBtnEl = inner.querySelector('#closePanelBtn');
+      if (closeBtnEl) inner.insertBefore(moduleContainer, closeBtnEl);
+      else inner.appendChild(moduleContainer);
+
+      loadModuleData(p.id).then((moduleData) => {
+        renderModuleSections(p, moduleData, moduleContainer);
+      });
+    }
+  }
 }
 
 let loadSeq = 0;
@@ -959,11 +1046,13 @@ async function maybeFlyToPostal(searchRaw) {
   }).addTo(map);
 }
 
-searchInput?.addEventListener('input', (e) => {
-  const v = e.target.value;
+const debouncedSearch = debounce((v) => {
   void loadProperties(v);
-  clearTimeout(postalDebounce);
-  postalDebounce = setTimeout(() => void maybeFlyToPostal(v), 320);
+  void maybeFlyToPostal(v);
+}, 300);
+
+searchInput?.addEventListener('input', (e) => {
+  debouncedSearch(e.target.value);
 });
 
 document.getElementById('legendToggle')?.addEventListener('click', () => legend.classList.toggle('hidden'));
@@ -975,14 +1064,14 @@ propertyForm?.addEventListener('submit', async (e) => {
   try {
     geojson = JSON.parse(gjEl?.value || 'null');
   } catch {
-    alert('Invalid GeoJSON');
+    showToast('Invalid GeoJSON', 'error');
     return;
   }
   let payload;
   try {
     payload = buildPayloadFromForm(geojson);
   } catch (err) {
-    alert(err.message || 'Check the form');
+    showToast(err.message || 'Check the form', 'error');
     return;
   }
 
@@ -991,12 +1080,14 @@ propertyForm?.addEventListener('submit', async (e) => {
   const url = editingId ? `/api/properties/${encodeURIComponent(editingId)}` : '/api/properties';
   const method = editingId ? 'PUT' : 'POST';
 
+  setButtonLoading(propertyFormSubmit, true);
   const res = await fetch(url, {
     method,
     headers,
     credentials: 'same-origin',
     body: JSON.stringify(payload)
   });
+  setButtonLoading(propertyFormSubmit, false);
   if (!res.ok) {
     let msg = 'Save failed';
     try {
@@ -1005,9 +1096,11 @@ propertyForm?.addEventListener('submit', async (e) => {
     } catch {
       /* ignore */
     }
-    alert(msg);
+    showToast(msg, 'error');
     return;
   }
+
+  showToast(editingId ? 'Property updated' : 'Property created', 'success');
 
   if (selectedWorkOrderId) {
     fetch(`/api/property-requests/${encodeURIComponent(selectedWorkOrderId)}/complete`, {
@@ -1035,10 +1128,10 @@ document.getElementById('markSurveyBtn')?.addEventListener('click', async () => 
   try {
     geojson = JSON.parse(gjEl?.value || 'null');
   } catch {
-    alert('Invalid GeoJSON');
+    showToast('Invalid GeoJSON', 'error');
     return;
   }
-  if (!geojson) { alert('Draw a property line first'); return; }
+  if (!geojson) { showToast('Draw a property line first', 'error'); return; }
 
   const editingId = editPropertyId?.value?.trim();
   if (editingId) {
@@ -1060,7 +1153,7 @@ document.getElementById('markSurveyBtn')?.addEventListener('click', async () => 
       credentials: 'same-origin',
       body: JSON.stringify(payload)
     });
-    if (!res.ok) { alert('Failed to update'); return; }
+    if (!res.ok) { showToast('Failed to update', 'error'); return; }
   } else {
     const payload = {
       name: propertyForm?.querySelector('[name="name"]')?.value?.trim() || 'Unmarked Parcel',
@@ -1079,7 +1172,7 @@ document.getElementById('markSurveyBtn')?.addEventListener('click', async () => 
       credentials: 'same-origin',
       body: JSON.stringify(payload)
     });
-    if (!res.ok) { alert('Failed to save survey marker'); return; }
+    if (!res.ok) { showToast('Failed to save survey marker', 'error'); return; }
   }
   propertyModal?.classList.add('hidden');
   resetFormForNew();
@@ -1259,7 +1352,7 @@ requestForm?.addEventListener('submit', async (e) => {
       const ot = row.querySelector('.co-owner-type')?.value || 'Individual';
       if (n) owners.push({ name: n, owner_type: ot });
     });
-    if (!owners.length) { alert('Add at least one owner'); return; }
+    if (!owners.length) { showToast('Add at least one owner', 'error'); return; }
     payload.residential_owners = owners;
     payload.owner_name = owners[0].name;
     payload.owner_type = owners[0].owner_type;
@@ -1267,7 +1360,7 @@ requestForm?.addEventListener('submit', async (e) => {
     payload.business_name = document.getElementById('reqBusinessName')?.value?.trim() || '';
     payload.owner_name = document.getElementById('reqOwnerName')?.value?.trim() || '';
     payload.owner_type = document.getElementById('reqOwnerType')?.value || 'Individual';
-    if (!payload.owner_name) { alert('Enter the owner name'); return; }
+    if (!payload.owner_name) { showToast('Enter the owner name', 'error'); return; }
   }
 
   try {
@@ -1279,15 +1372,515 @@ requestForm?.addEventListener('submit', async (e) => {
     });
     if (r.ok) {
       requestModal?.classList.add('hidden');
-      alert('Your property appraisal request has been submitted!');
+      showToast('Your property appraisal request has been submitted!', 'success');
       if (isStaff()) void loadWorkOrders();
     } else {
       const j = await r.json().catch(() => ({}));
-      alert(j.error || 'Failed to submit request');
+      showToast(j.error || 'Failed to submit request', 'error');
     }
   } catch {
-    alert('Network error — please try again');
+    showToast('Network error — please try again', 'error');
   }
 });
 
 syncReqTypeFields();
+
+/* ── Module UI Helpers ─────────────────────────────── */
+
+async function loadModuleData(propertyId) {
+  const data = {};
+  const fetches = [];
+
+  if (isModuleEnabled('law_liens')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/liens`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.liens = d; }).catch(() => { data.liens = []; })
+    );
+  }
+  if (isModuleEnabled('tax_ledger')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/tax-bills`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.taxBills = d; }).catch(() => { data.taxBills = []; })
+    );
+  }
+  if (isModuleEnabled('leases')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/leases`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.leases = d; }).catch(() => { data.leases = []; })
+    );
+  }
+  if (isModuleEnabled('photos')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/photos`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.photos = d; }).catch(() => { data.photos = []; })
+    );
+  }
+  if (isModuleEnabled('staff_notes') && isStaff()) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/notes`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.staffNotes = d; }).catch(() => { data.staffNotes = []; })
+    );
+  }
+  if (isModuleEnabled('mortgages')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/mortgages`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.mortgages = d; }).catch(() => { data.mortgages = []; })
+    );
+  }
+  if (isModuleEnabled('insurance')) {
+    fetches.push(
+      fetch(`/api/modules/properties/${propertyId}/insurance`, { credentials: 'same-origin' })
+        .then((r) => r.ok ? r.json() : []).then((d) => { data.insurance = d; }).catch(() => { data.insurance = []; })
+    );
+  }
+
+  await Promise.all(fetches);
+  return data;
+}
+
+function renderModuleSections(p, moduleData, container) {
+  if (!container) return;
+
+  // Photos
+  if (isModuleEnabled('photos') && moduleData.photos) {
+    const photos = moduleData.photos;
+    let photoHtml = `<div class="module-section"><h4 class="module-section__title">Photos</h4>`;
+    if (photos.length > 0) {
+      photoHtml += `<div class="photo-gallery">`;
+      photos.forEach((ph) => {
+        photoHtml += `<div class="photo-thumb" data-photo-id="${ph._id}">
+          <img src="/uploads/photos/thumb-${escapeHtml(ph.filename)}" alt="${escapeHtml(ph.caption || ph.original_name)}"
+               onerror="this.src='/uploads/photos/${escapeHtml(ph.filename)}'" loading="lazy" />
+          ${isStaff() ? `<button class="photo-delete-btn" data-id="${ph._id}" title="Delete">&times;</button>` : ''}
+        </div>`;
+      });
+      photoHtml += `</div>`;
+    } else {
+      photoHtml += `<p class="module-empty">No photos</p>`;
+    }
+    if (isStaff()) {
+      photoHtml += `<form class="photo-upload-form" data-property="${p.id}" enctype="multipart/form-data">
+        <input type="file" name="photo" accept="image/*" class="photo-file-input" />
+        <input type="text" name="caption" placeholder="Caption (optional)" class="photo-caption-input" />
+        <button type="submit" class="btn btn-compact">Upload</button>
+      </form>`;
+    }
+    photoHtml += `</div>`;
+    container.insertAdjacentHTML('beforeend', photoHtml);
+
+    container.querySelectorAll('.photo-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const r = await fetch(`/api/modules/photos/${id}`, { method: 'DELETE', headers: { 'CSRF-Token': csrfToken }, credentials: 'same-origin' });
+        if (r.ok) { btn.closest('.photo-thumb')?.remove(); showToast('Photo deleted', 'success'); }
+        else showToast('Failed to delete photo', 'error');
+      });
+    });
+
+    container.querySelector('.photo-upload-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const fd = new FormData(form);
+      const r = await fetch(`/api/modules/properties/${p.id}/photos`, {
+        method: 'POST', headers: { 'CSRF-Token': csrfToken }, credentials: 'same-origin', body: fd
+      });
+      if (r.ok) {
+        showToast('Photo uploaded', 'success');
+        const fresh = await fetch(`/api/properties/${encodeURIComponent(p.id)}`, { credentials: 'same-origin' });
+        const updated = await fresh.json();
+        if (updated && !updated.error) renderPanel(updated);
+      } else showToast('Upload failed', 'error');
+    });
+  }
+
+  // Liens
+  if (isModuleEnabled('law_liens') && moduleData.liens) {
+    const active = moduleData.liens.filter((l) => l.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Liens & Warrants ${active.length ? `<span class="badge badge--danger">${active.length}</span>` : ''}</h4>`;
+    if (moduleData.liens.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.liens.forEach((l) => {
+        html += `<div class="module-list-item ${l.status === 'Active' ? 'module-list-item--danger' : ''}">
+          <span><strong>${escapeHtml(l.lien_type)}</strong> — $${Number(l.amount).toLocaleString()}</span>
+          <span class="text-muted">${escapeHtml(l.description)}</span>
+          <span class="badge badge--${l.status === 'Active' ? 'danger' : 'success'}">${l.status}</span>
+          ${isStaff() && l.status === 'Active' ? `<button class="btn btn-compact resolve-lien-btn" data-id="${l._id}">Resolve</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No liens</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Lien</summary>
+        <div class="module-form-body">
+          <select class="lien-type-select"><option>Tax Lien</option><option>Court Order</option><option>Asset Freeze</option><option>Mechanics Lien</option><option>Other</option></select>
+          <input type="number" class="lien-amount-input" placeholder="Amount ($)" step="0.01" />
+          <input type="text" class="lien-desc-input" placeholder="Description" />
+          <button class="btn btn-compact btn-primary add-lien-btn" data-property="${p.id}">Place Lien</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.resolve-lien-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/liens/${btn.dataset.id}/resolve`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin' });
+        if (r.ok) { showToast('Lien resolved', 'success'); renderPanel(p); } else showToast('Failed to resolve lien', 'error');
+      });
+    });
+
+    container.querySelector('.add-lien-btn')?.addEventListener('click', async () => {
+      const sec = container.querySelector('.module-add-form');
+      const type = sec.querySelector('.lien-type-select')?.value;
+      const amount = sec.querySelector('.lien-amount-input')?.value;
+      const desc = sec.querySelector('.lien-desc-input')?.value;
+      const r = await fetch(`/api/modules/properties/${p.id}/liens`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ lien_type: type, amount, description: desc })
+      });
+      if (r.ok) { showToast('Lien placed', 'success'); renderPanel(p); } else showToast('Failed to place lien', 'error');
+    });
+  }
+
+  // Tax Ledger
+  if (isModuleEnabled('tax_ledger') && moduleData.taxBills) {
+    const unpaid = moduleData.taxBills.filter((b) => b.status !== 'Paid');
+    let html = `<div class="module-section"><h4 class="module-section__title">Tax Ledger ${unpaid.length ? `<span class="badge badge--warning">${unpaid.length} unpaid</span>` : ''}</h4>`;
+    if (moduleData.taxBills.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.taxBills.forEach((b) => {
+        const statusClass = b.status === 'Paid' ? 'success' : b.status === 'Overdue' ? 'danger' : 'warning';
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(b.period)}</strong> — $${Number(b.amount_due).toLocaleString()}</span>
+          <span class="text-muted">Paid: $${Number(b.amount_paid).toLocaleString()} | Due: ${new Date(b.due_date).toLocaleDateString()}</span>
+          <span class="badge badge--${statusClass}">${b.status}</span>
+          ${isStaff() && b.status !== 'Paid' ? `<button class="btn btn-compact pay-tax-btn" data-id="${b._id}" data-remaining="${b.amount_due - b.amount_paid}">Record Payment</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No tax bills</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Create Bill</summary>
+        <div class="module-form-body">
+          <input type="text" class="tax-period-input" placeholder="Period (e.g. 2026-Q1)" />
+          <input type="number" class="tax-amount-input" placeholder="Amount due ($)" step="0.01" />
+          <input type="date" class="tax-due-input" />
+          <button class="btn btn-compact btn-primary create-bill-btn" data-property="${p.id}">Create Bill</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.pay-tax-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const remaining = Number(btn.dataset.remaining);
+        const amount = prompt(`Payment amount (max $${remaining}):`, remaining);
+        if (!amount) return;
+        const r = await fetch(`/api/modules/tax-bills/${btn.dataset.id}/payment`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ amount: Number(amount) })
+        });
+        if (r.ok) { showToast('Payment recorded', 'success'); renderPanel(p); } else showToast('Payment failed', 'error');
+      });
+    });
+
+    container.querySelector('.create-bill-btn')?.addEventListener('click', async () => {
+      const sec = container.querySelector('.module-add-form');
+      const period = sec.querySelector('.tax-period-input')?.value;
+      const amount_due = sec.querySelector('.tax-amount-input')?.value;
+      const due_date = sec.querySelector('.tax-due-input')?.value;
+      if (!period || !amount_due || !due_date) { showToast('Fill all fields', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/tax-bills`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ period, amount_due, due_date })
+      });
+      if (r.ok) { showToast('Tax bill created', 'success'); renderPanel(p); } else { const j = await r.json().catch(() => ({})); showToast(j.error || 'Failed', 'error'); }
+    });
+  }
+
+  // Leases
+  if (isModuleEnabled('leases') && moduleData.leases) {
+    const active = moduleData.leases.filter((l) => l.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Leases ${active.length ? `<span class="badge badge--info">${active.length} active</span>` : ''}</h4>`;
+    if (moduleData.leases.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.leases.forEach((l) => {
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(l.tenant_name)}</strong> — $${Number(l.monthly_rent).toLocaleString()}/mo</span>
+          <span class="text-muted">${new Date(l.start_date).toLocaleDateString()} ${l.end_date ? '→ ' + new Date(l.end_date).toLocaleDateString() : '(ongoing)'}</span>
+          <span class="badge badge--${l.status === 'Active' ? 'info' : l.status === 'Expired' ? 'warning' : 'danger'}">${l.status}</span>
+          ${isStaff() && l.status === 'Active' ? `<button class="btn btn-compact end-lease-btn" data-id="${l._id}">Terminate</button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No leases</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Lease</summary>
+        <div class="module-form-body">
+          <input type="text" class="lease-tenant-input" placeholder="Tenant name" />
+          <input type="number" class="lease-rent-input" placeholder="Monthly rent ($)" step="0.01" />
+          <input type="date" class="lease-start-input" />
+          <input type="date" class="lease-end-input" />
+          <button class="btn btn-compact btn-primary add-lease-btn" data-property="${p.id}">Add Lease</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.end-lease-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/leases/${btn.dataset.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+          body: JSON.stringify({ status: 'Terminated', end_date: new Date().toISOString() })
+        });
+        if (r.ok) { showToast('Lease terminated', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+      });
+    });
+
+    container.querySelector('.add-lease-btn')?.addEventListener('click', async () => {
+      const sec = container.querySelector('.module-add-form:last-of-type') || container.querySelector('.module-add-form');
+      const tenant = container.querySelector('.lease-tenant-input')?.value;
+      const rent = container.querySelector('.lease-rent-input')?.value;
+      const start = container.querySelector('.lease-start-input')?.value;
+      const end = container.querySelector('.lease-end-input')?.value;
+      if (!tenant || !start) { showToast('Tenant name and start date required', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/leases`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ tenant_name: tenant, monthly_rent: rent, start_date: start, end_date: end || null })
+      });
+      if (r.ok) { showToast('Lease added', 'success'); renderPanel(p); } else showToast('Failed to add lease', 'error');
+    });
+  }
+
+  // Staff Notes
+  if (isModuleEnabled('staff_notes') && isStaff() && moduleData.staffNotes) {
+    let html = `<div class="module-section"><h4 class="module-section__title">Staff Notes</h4>`;
+    if (moduleData.staffNotes.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.staffNotes.forEach((n) => {
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(n.author?.username || 'Unknown')}</strong> <time class="text-muted">${new Date(n.created_at).toLocaleString()}</time></span>
+          <span>${escapeHtml(n.text)}</span>
+          <button class="btn btn-compact btn-danger delete-note-btn" data-id="${n._id}" title="Delete">&times;</button>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    html += `<div class="note-add-row">
+      <input type="text" class="note-text-input" placeholder="Add a note..." />
+      <button class="btn btn-compact btn-primary add-note-btn" data-property="${p.id}">Add</button>
+    </div></div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelectorAll('.delete-note-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const r = await fetch(`/api/modules/notes/${btn.dataset.id}`, { method: 'DELETE', headers: { 'CSRF-Token': csrfToken }, credentials: 'same-origin' });
+        if (r.ok) { btn.closest('.module-list-item')?.remove(); showToast('Note deleted', 'success'); }
+      });
+    });
+
+    container.querySelector('.add-note-btn')?.addEventListener('click', async () => {
+      const input = container.querySelector('.note-text-input');
+      const text = input?.value?.trim();
+      if (!text) return;
+      const r = await fetch(`/api/modules/properties/${p.id}/notes`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ text })
+      });
+      if (r.ok) { showToast('Note added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Mortgages
+  if (isModuleEnabled('mortgages') && moduleData.mortgages) {
+    const active = moduleData.mortgages.filter((m) => m.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Mortgages ${active.length ? `<span class="badge badge--info">${active.length}</span>` : ''}</h4>`;
+    if (moduleData.mortgages.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.mortgages.forEach((m) => {
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(m.lender_name)}</strong> — $${Number(m.principal).toLocaleString()} at ${m.interest_rate}%</span>
+          <span class="text-muted">Balance: $${Number(m.remaining_balance).toLocaleString()} | Payment: $${Number(m.monthly_payment).toLocaleString()}/mo</span>
+          <span class="badge badge--${m.status === 'Active' ? 'info' : m.status === 'Paid Off' ? 'success' : 'danger'}">${m.status}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No mortgages</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Mortgage</summary>
+        <div class="module-form-body">
+          <input type="text" class="mort-lender-input" placeholder="Lender name" />
+          <input type="number" class="mort-principal-input" placeholder="Principal ($)" step="0.01" />
+          <input type="number" class="mort-rate-input" placeholder="Interest rate (%)" step="0.01" />
+          <input type="number" class="mort-payment-input" placeholder="Monthly payment ($)" step="0.01" />
+          <input type="date" class="mort-start-input" />
+          <button class="btn btn-compact btn-primary add-mort-btn" data-property="${p.id}">Add Mortgage</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelector('.add-mort-btn')?.addEventListener('click', async () => {
+      const lender = container.querySelector('.mort-lender-input')?.value;
+      const principal = container.querySelector('.mort-principal-input')?.value;
+      const rate = container.querySelector('.mort-rate-input')?.value;
+      const payment = container.querySelector('.mort-payment-input')?.value;
+      const start = container.querySelector('.mort-start-input')?.value;
+      if (!lender || !principal || !start) { showToast('Fill required fields', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/mortgages`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ lender_name: lender, principal, interest_rate: rate, monthly_payment: payment, start_date: start })
+      });
+      if (r.ok) { showToast('Mortgage added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+
+  // Insurance
+  if (isModuleEnabled('insurance') && moduleData.insurance) {
+    const active = moduleData.insurance.filter((i) => i.status === 'Active');
+    let html = `<div class="module-section"><h4 class="module-section__title">Insurance ${active.length ? `<span class="badge badge--info">${active.length}</span>` : ''}</h4>`;
+    if (moduleData.insurance.length > 0) {
+      html += `<div class="module-list">`;
+      moduleData.insurance.forEach((i) => {
+        html += `<div class="module-list-item">
+          <span><strong>${escapeHtml(i.provider_name)}</strong> — Coverage: $${Number(i.coverage_amount).toLocaleString()}</span>
+          <span class="text-muted">Premium: $${Number(i.monthly_premium).toLocaleString()}/mo | ${i.policy_number ? '#' + escapeHtml(i.policy_number) : ''}</span>
+          <span class="badge badge--${i.status === 'Active' ? 'info' : i.status === 'Claim Filed' ? 'warning' : 'danger'}">${i.status}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<p class="module-empty">No insurance policies</p>`;
+    }
+    if (isStaff()) {
+      html += `<details class="module-add-form"><summary class="btn btn-compact">Add Policy</summary>
+        <div class="module-form-body">
+          <input type="text" class="ins-provider-input" placeholder="Provider name" />
+          <input type="text" class="ins-policy-input" placeholder="Policy number" />
+          <input type="number" class="ins-coverage-input" placeholder="Coverage amount ($)" step="0.01" />
+          <input type="number" class="ins-premium-input" placeholder="Monthly premium ($)" step="0.01" />
+          <input type="date" class="ins-start-input" />
+          <button class="btn btn-compact btn-primary add-ins-btn" data-property="${p.id}">Add Policy</button>
+        </div></details>`;
+    }
+    html += `</div>`;
+    container.insertAdjacentHTML('beforeend', html);
+
+    container.querySelector('.add-ins-btn')?.addEventListener('click', async () => {
+      const provider = container.querySelector('.ins-provider-input')?.value;
+      const policyNum = container.querySelector('.ins-policy-input')?.value;
+      const coverage = container.querySelector('.ins-coverage-input')?.value;
+      const premium = container.querySelector('.ins-premium-input')?.value;
+      const start = container.querySelector('.ins-start-input')?.value;
+      if (!provider || !start) { showToast('Fill required fields', 'error'); return; }
+      const r = await fetch(`/api/modules/properties/${p.id}/insurance`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken }, credentials: 'same-origin',
+        body: JSON.stringify({ provider_name: provider, policy_number: policyNum, coverage_amount: coverage, monthly_premium: premium, start_date: start })
+      });
+      if (r.ok) { showToast('Policy added', 'success'); renderPanel(p); } else showToast('Failed', 'error');
+    });
+  }
+}
+
+/* ── Modal Handling: Escape & Click-Outside ────────── */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (propertyModal && !propertyModal.classList.contains('hidden')) {
+      propertyModal.classList.add('hidden');
+      resetFormForNew();
+      return;
+    }
+    if (requestModal && !requestModal.classList.contains('hidden')) {
+      requestModal.classList.add('hidden');
+      return;
+    }
+    if (panel && !panel.classList.contains('hidden')) {
+      panel.classList.add('hidden');
+    }
+  }
+});
+
+propertyModal?.addEventListener('click', (e) => {
+  if (e.target === propertyModal) {
+    propertyModal.classList.add('hidden');
+    resetFormForNew();
+  }
+});
+
+requestModal?.addEventListener('click', (e) => {
+  if (e.target === requestModal) {
+    requestModal.classList.add('hidden');
+  }
+});
+
+/* ── Map Module Layers ─────────────────────────────── */
+let heatLayer = null;
+let annotationLayer = null;
+let districtLayer = null;
+
+async function loadHeatmapLayer(layerType = 'value') {
+  if (!isModuleEnabled('heatmaps') || typeof L.heatLayer !== 'function') return;
+  try {
+    const r = await fetch(`/api/modules/heatmap/data?layer=${layerType}`, { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const points = await r.json();
+    if (heatLayer) map.removeLayer(heatLayer);
+    if (points.length === 0) return;
+    const maxIntensity = Math.max(...points.map((p) => p[2]));
+    heatLayer = L.heatLayer(points, {
+      radius: 25, blur: 15, maxZoom: 3, max: maxIntensity || 1,
+      gradient: { 0.2: '#2f80ed', 0.5: '#27ae60', 0.8: '#f2994a', 1.0: '#e74c3c' }
+    }).addTo(map);
+  } catch { /* heatmap optional */ }
+}
+
+async function loadAnnotations() {
+  if (!isModuleEnabled('annotations')) return;
+  try {
+    const r = await fetch('/api/modules/annotations', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const annotations = await r.json();
+    if (annotationLayer) map.removeLayer(annotationLayer);
+    annotationLayer = L.layerGroup();
+    for (const a of annotations) {
+      if (!a.position?.lat || !a.position?.lng) continue;
+      const marker = L.circleMarker([a.position.lat, a.position.lng], {
+        radius: 6, fillColor: '#d4af37', fillOpacity: 0.8, color: '#fff', weight: 1
+      });
+      marker.bindPopup(`<strong>${escapeHtml(a.title)}</strong><br>${escapeHtml(a.description)}<br><em>${escapeHtml(a.category)}</em>`);
+      annotationLayer.addLayer(marker);
+    }
+    annotationLayer.addTo(map);
+  } catch { /* annotations optional */ }
+}
+
+async function loadDistricts() {
+  if (!isModuleEnabled('districts')) return;
+  try {
+    const r = await fetch('/api/modules/districts', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const districts = await r.json();
+    if (districtLayer) map.removeLayer(districtLayer);
+    districtLayer = L.layerGroup();
+    for (const d of districts) {
+      if (!d.geojson) continue;
+      const layer = L.geoJSON({ type: 'Feature', geometry: d.geojson }, {
+        style: { color: d.color || '#3498db', weight: 2, fillOpacity: 0.08, dashArray: '8 4' }
+      });
+      layer.bindPopup(`<strong>${escapeHtml(d.name)}</strong><br>${escapeHtml(d.description)}`);
+      districtLayer.addLayer(layer);
+    }
+    districtLayer.addTo(map);
+  } catch { /* districts optional */ }
+}
+
+// Load map modules on startup
+if (isModuleEnabled('annotations')) void loadAnnotations();
+if (isModuleEnabled('districts')) void loadDistricts();

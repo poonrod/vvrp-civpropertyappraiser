@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
   } catch (e) {
     console.error('[publicRoutes] Could not load price_per_sqft:', e.message);
   }
-  res.render('index', { config, taxRates: DEFAULT_TAX_RATES, taxPresets, pricePerSqft });
+  res.render('index', { config, taxRates: DEFAULT_TAX_RATES, taxPresets, pricePerSqft, modules: res.locals.modules || {} });
 });
 
 module.exports = router;

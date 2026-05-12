@@ -10,6 +10,7 @@
   <title>San Andreas Property Appraiser</title>
 </head>
 <body class="layout-map">
+  <div class="toast-container" id="toastContainer"></div>
   <header class="site-header">
     <div class="site-header__inner">
       <div class="site-header__lead">
@@ -143,9 +144,10 @@
     </div>
   </main>
 
-  <script>window.SAPA_CONFIG = <%- JSON.stringify(config || {}) %>; window.SAPA_USER = <%- JSON.stringify(user || null) %>; window.SAPA_TAX_RATES = <%- JSON.stringify(taxRates || {}) %>; window.SAPA_TAX_PRESETS = <%- JSON.stringify(taxPresets || []) %>; window.SAPA_PRICE_PER_SQFT = <%= typeof pricePerSqft !== 'undefined' && pricePerSqft ? pricePerSqft : 0 %>;</script>
+  <script>window.SAPA_CONFIG = <%- JSON.stringify(config || {}) %>; window.SAPA_USER = <%- JSON.stringify(user || null) %>; window.SAPA_TAX_RATES = <%- JSON.stringify(taxRates || {}) %>; window.SAPA_TAX_PRESETS = <%- JSON.stringify(taxPresets || []) %>; window.SAPA_PRICE_PER_SQFT = <%= typeof pricePerSqft !== 'undefined' && pricePerSqft ? pricePerSqft : 0 %>; window.SAPA_MODULES = <%- JSON.stringify(modules || {}) %>;</script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <script src="/public/js/main.js"></script>
 </body>
 </html>

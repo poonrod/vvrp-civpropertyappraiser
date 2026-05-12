@@ -17,7 +17,9 @@ const adminRoutes = require('./routes/adminRoutes');
 const businessRoutes = require('./routes/businessRoutes');
 const postalRoutes = require('./routes/postalRoutes');
 const propertyRequestRoutes = require('./routes/propertyRequestRoutes');
+const moduleRoutes = require('./routes/moduleRoutes');
 const { getMongoClientOptions } = require('./config/db');
+const { loadModules } = require('./middleware/moduleMiddleware');
 
 const app = express();
 
@@ -110,6 +112,8 @@ app.use(csurf());
 app.use('/public', express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use(loadModules);
+
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.csrfToken = req.csrfToken();
@@ -123,6 +127,7 @@ app.use('/api/properties', propertyRoutes);
 app.use('/api/postals', postalRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/property-requests', propertyRequestRoutes);
+app.use('/api/modules', moduleRoutes);
 app.use('/admin', adminRoutes);
 
 app.use((err, req, res, next) => {
