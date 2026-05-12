@@ -571,20 +571,18 @@ function styleForProperty(p) {
   };
 }
 
-function ownersDetailHtml(p) {
+function ownersGridCells(p) {
   if (p.type === 'Residential' && Array.isArray(p.residential_owners) && p.residential_owners.length > 0) {
-    return `<ul class="owner-list">${p.residential_owners
-      .map(
-        (o) =>
-          `<li>${escapeHtml(o.name)} <span class="text-muted">(${escapeHtml(o.owner_type)})</span></li>`
-      )
-      .join('')}</ul>`;
+    const names = p.residential_owners.map((o) =>
+      `<span class="owner-chip"><span class="owner-chip__name">${escapeHtml(o.name)}</span><span class="owner-chip__type">${escapeHtml(o.owner_type)}</span></span>`
+    ).join('');
+    return `<div class="panel__info-cell panel__info-cell--wide"><span class="panel__cell-label">Owners (${p.residential_owners.length})</span><div class="owner-chips">${names}</div></div>`;
   }
-  let html = `<p class="detail"><strong>Owner</strong> ${escapeHtml(String(p.owner_name))} (${escapeHtml(String(p.owner_type))})</p>`;
-  if (p.business_name) {
-    html += `<p class="detail"><strong>Business</strong> ${escapeHtml(String(p.business_name))}</p>`;
+  if (p.owner_type === 'Business' && p.business_name) {
+    return `<div class="panel__info-cell"><span class="panel__cell-label">Business</span><span class="panel__cell-value panel__cell-value--biz">${escapeHtml(String(p.business_name))}</span></div>` +
+      `<div class="panel__info-cell"><span class="panel__cell-label">Representative</span><span class="panel__cell-value">${escapeHtml(String(p.owner_name))}</span></div>`;
   }
-  return html;
+  return `<div class="panel__info-cell panel__info-cell--wide"><span class="panel__cell-label">Owner</span><span class="panel__cell-value">${escapeHtml(String(p.owner_name))}</span></div>`;
 }
 
 async function openEditModal(propertyId) {
@@ -688,12 +686,15 @@ function renderPanel(p) {
       <div class="panel__info-grid">
         <div class="panel__info-cell"><span class="panel__cell-label">Parcel</span><span class="panel__cell-value">${escapeHtml(String(p.parcel_id))}</span></div>
         <div class="panel__info-cell"><span class="panel__cell-label">Address</span><span class="panel__cell-value">${escapeHtml(String(p.address))}</span></div>
+        ${ownersGridCells(p)}
         <div class="panel__info-cell"><span class="panel__cell-label">Purchase Date</span><span class="panel__cell-value">${purchaseDate}</span></div>
         <div class="panel__info-cell"><span class="panel__cell-label">Purchase Price</span><span class="panel__cell-value panel__cell-value--money">$${Number(p.purchase_price || 0).toLocaleString()}</span></div>
         <div class="panel__info-cell"><span class="panel__cell-label">Assessed Value</span><span class="panel__cell-value panel__cell-value--money">$${Number(p.assessed_value || 0).toLocaleString()}</span></div>
-        ${Number(p.square_footage || 0) > 0 ? `<div class="panel__info-cell"><span class="panel__cell-label">Sq Footage</span><span class="panel__cell-value">${Number(p.square_footage).toLocaleString()} sqft</span></div>` : `<div class="panel__info-cell"><span class="panel__cell-label">Updated</span><span class="panel__cell-value">${updatedDate}</span></div>`}
-        ${ownersDetailHtml(p)}
+        ${Number(p.square_footage || 0) > 0 ? `<div class="panel__info-cell"><span class="panel__cell-label">Sq Footage</span><span class="panel__cell-value">${Number(p.square_footage).toLocaleString()} sqft</span></div>` : ''}
+        <div class="panel__info-cell"><span class="panel__cell-label">Updated</span><span class="panel__cell-value">${updatedDate}</span></div>
+        <div class="panel__info-cell"><span class="panel__cell-label">Created</span><span class="panel__cell-value">${p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</span></div>
       </div>
+      ${p.notes ? `<div class="panel__notes"><span class="panel__cell-label">Notes</span><p class="panel__notes-text">${escapeHtml(String(p.notes))}</p></div>` : ''}
 
       <div class="panel__tax-strip">
         <div class="panel__tax-left">

@@ -509,6 +509,69 @@ body.layout-map {
   font-variant-numeric: tabular-nums;
 }
 
+.panel__cell-value--biz {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.panel__info-cell--wide {
+  grid-column: 1 / -1;
+}
+
+/* ── Owner chips ─────────── */
+.owner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.owner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.owner-chip__name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.owner-chip__type {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 1px 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+
+/* ── Notes block ─────────── */
+.panel__notes {
+  margin: 10px 0 14px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.panel__notes .panel__cell-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.panel__notes-text {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 .panel__section {
   margin-bottom: 4px;
 }
