@@ -666,30 +666,53 @@ function renderPanel(p) {
     <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
     </div>`;
   } else {
+    const statusCls = p.status === 'For Sale' ? 'status--sale' : p.status === 'Foreclosed' ? 'status--danger' : p.status === 'Requires Survey' ? 'status--warn' : 'status--owned';
+    const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    const purchaseDate = p.purchase_date ? new Date(p.purchase_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
     panel.innerHTML = `
-    <div class="panel__inner">
-    ${p.status === 'For Sale' ? `<div class="sale-banner">For sale — asking $${Number(p.purchase_price || 0).toLocaleString()}</div>` : ''}
-    <h3>${escapeHtml(p.name)}</h3>
-    <p class="detail"><strong>Parcel</strong> ${escapeHtml(String(p.parcel_id))}</p>
-    <p class="detail"><strong>Address</strong> ${escapeHtml(String(p.address))}</p>
-    ${ownersDetailHtml(p)}
-    <p class="detail"><strong>Purchase date</strong> ${p.purchase_date ? escapeHtml(String(p.purchase_date)) : '—'}</p>
-    <p class="detail"><strong>Purchase price</strong> $${Number(p.purchase_price || 0).toLocaleString()}</p>
-    <p class="detail"><strong>Assessed value</strong> $${Number(p.assessed_value || 0).toLocaleString()}</p>
-    ${Number(p.square_footage || 0) > 0 ? `<p class="detail"><strong>Square footage</strong> ${Number(p.square_footage).toLocaleString()} sqft</p>` : ''}
-    <div class="tax-detail-block">
-      <p class="detail"><strong>${p.type === 'Commercial' ? 'Commercial Tax' : p.type === 'Residential' ? 'Residential Tax' : 'Property Tax'}</strong> <span class="tax-amount">$${Number(p.annual_tax || 0).toLocaleString()}<span class="tax-rate-badge">${Number(p.tax_rate || 0)}%</span></span></p>
-      ${p.tax_zone ? `<p class="detail"><strong>Tax Zone</strong> ${escapeHtml(p.tax_zone)}</p>` : ''}
-      ${Number(p.annual_tax) > 0 ? `<p class="detail tax-monthly"><strong>Yearly Tax</strong> $${Number(p.annual_tax).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>` : ''}
-    </div>
-    <p class="detail"><strong>Status</strong> ${escapeHtml(String(p.status))}</p>
-    <p class="detail"><strong>Updated</strong> ${escapeHtml(String(p.updated_at || ''))}</p>
-    ${saleBtn}
-    ${transferBtn}
-    ${txBtn}
-    ${editBtn}
-    ${deleteBtn}
-    <button type="button" class="btn btn-panel btn-close-panel" id="closePanelBtn">Close</button>
+    <div class="panel__inner panel--redesign">
+      <button type="button" class="panel__close" id="closePanelBtn" title="Close">&times;</button>
+      ${p.status === 'For Sale' ? `<div class="sale-banner">For Sale — Asking $${Number(p.purchase_price || 0).toLocaleString()}</div>` : ''}
+      <h3 class="panel__title">${escapeHtml(p.name)}</h3>
+      <div class="panel__meta">
+        <span class="panel__badge ${statusCls}">${escapeHtml(p.status)}</span>
+        <span class="panel__type-badge">${escapeHtml(p.type)}</span>
+      </div>
+
+      <div class="panel__section">
+        <div class="panel__row"><span class="panel__label">Parcel</span><span class="panel__value">${escapeHtml(String(p.parcel_id))}</span></div>
+        <div class="panel__row"><span class="panel__label">Address</span><span class="panel__value">${escapeHtml(String(p.address))}</span></div>
+        ${ownersDetailHtml(p)}
+      </div>
+
+      <div class="panel__divider"></div>
+
+      <div class="panel__section">
+        <div class="panel__row"><span class="panel__label">Purchase Date</span><span class="panel__value">${purchaseDate}</span></div>
+        <div class="panel__row"><span class="panel__label">Purchase Price</span><span class="panel__value panel__value--money">$${Number(p.purchase_price || 0).toLocaleString()}</span></div>
+        <div class="panel__row"><span class="panel__label">Assessed Value</span><span class="panel__value panel__value--money">$${Number(p.assessed_value || 0).toLocaleString()}</span></div>
+        ${Number(p.square_footage || 0) > 0 ? `<div class="panel__row"><span class="panel__label">Sq. Footage</span><span class="panel__value">${Number(p.square_footage).toLocaleString()} sqft</span></div>` : ''}
+      </div>
+
+      <div class="panel__tax-card">
+        <div class="panel__tax-header">
+          <span>${p.type === 'Commercial' ? 'Commercial' : p.type === 'Residential' ? 'Residential' : 'Property'} Tax</span>
+          <span class="panel__tax-rate">${Number(p.tax_rate || 0)}%</span>
+        </div>
+        ${p.tax_zone ? `<div class="panel__tax-zone">${escapeHtml(p.tax_zone)}</div>` : ''}
+        <div class="panel__tax-amount">$${Number(p.annual_tax || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<span class="panel__tax-period">/ year</span></div>
+      </div>
+
+      <div class="panel__row panel__row--subtle"><span class="panel__label">Updated</span><span class="panel__value">${updatedDate}</span></div>
+
+      <div class="panel__actions">
+        ${saleBtn}
+        ${transferBtn}
+        ${txBtn}
+        ${editBtn}
+        ${deleteBtn}
+      </div>
     </div>`;
   }
 
@@ -3022,21 +3045,30 @@ let tableSort = { key: 'name', dir: 'asc' };
 let tablePage = 1;
 const TABLE_PAGE_SIZE = 50;
 
-viewToggleBtn?.addEventListener('click', () => {
-  const isTableVisible = !tableView?.classList.contains('hidden');
-  if (isTableVisible) {
-    tableView.classList.add('hidden');
-    viewToggleBtn.textContent = 'Table';
-  } else {
+function setTableViewActive(active) {
+  const drawToolbar = document.querySelector('.leaflet-draw');
+  const zoomControl = document.querySelector('.leaflet-control-zoom');
+  if (active) {
     tableView?.classList.remove('hidden');
     viewToggleBtn.textContent = 'Map';
+    if (drawToolbar) drawToolbar.style.display = 'none';
+    if (zoomControl) zoomControl.style.display = 'none';
     renderTable(filteredProperties);
+  } else {
+    tableView?.classList.add('hidden');
+    viewToggleBtn.textContent = 'Table';
+    if (drawToolbar) drawToolbar.style.display = '';
+    if (zoomControl) zoomControl.style.display = '';
   }
+}
+
+viewToggleBtn?.addEventListener('click', () => {
+  const isTableVisible = !tableView?.classList.contains('hidden');
+  setTableViewActive(!isTableVisible);
 });
 
 document.getElementById('backToMapBtn')?.addEventListener('click', () => {
-  tableView?.classList.add('hidden');
-  viewToggleBtn.textContent = 'Table';
+  setTableViewActive(false);
 });
 
 document.querySelectorAll('.property-table th.sortable').forEach((th) => {
